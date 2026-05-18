@@ -3,6 +3,7 @@ import SwiftUI
 struct LogView: View {
     @Environment(DataStore.self) private var store
     @State private var editingSession: ReviewSession?
+    @State private var pendingClearGroup: (key: String, ids: [UUID])?
 
     private var grouped: [(key: String, sessions: [ReviewSession])] {
         let fmt = DateFormatter()
@@ -45,13 +46,17 @@ struct LogView: View {
             } else {
                 List {
                     ForEach(grouped, id: \.key) { group in
-                        Section(group.key) {
+                        Section {
                             ForEach(group.sessions) { session in
                                 SessionRow(session: session) {
                                     editingSession = session
                                 } onDelete: {
                                     store.deleteSession(session.id)
                                 }
+                            }
+                        } header: {
+                            MonthSectionHeader(title: group.key, count: group.sessions.count) {
+                                pendingClearGroup = (group.key, group.sessions.map(\.id))
                             }
                         }
                     }
@@ -61,6 +66,55 @@ struct LogView: View {
         }
         .sheet(item: $editingSession) { session in
             AddSessionView(existing: session)
+        }
+        .confirmationDialog(
+            "清空 \(pendingClearGroup?.key ?? "") 的全部记录？",
+            isPresented: Binding(
+                get: { pendingClearGroup != nil },
+                set: { if !$0 { pendingClearGroup = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("删除 \(pendingClearGroup?.ids.count ?? 0) 条记录", role: .destructive) {
+                if let g = pendingClearGroup {
+                    store.deleteSessions(Set(g.ids))
+                }
+                pendingClearGroup = nil
+            }
+        } message: {
+            Text("该操作不可撤销，本月所有复习记录将被永久删除。")
+        }
+    }
+}
+
+private struct MonthSectionHeader: View {
+    let title: String
+    let count: Int
+    let onClear: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(title)
+            Spacer()
+            Button { onClear() } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("清空本月")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(hovered ? .white : .red.opacity(0.65))
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(
+                    hovered ? AnyShapeStyle(Color.red.opacity(0.75)) : AnyShapeStyle(Color.red.opacity(0.08)),
+                    in: RoundedRectangle(cornerRadius: 5)
+                )
+                .scaleEffect(hovered ? 1.04 : 1.0)
+                .animation(.easeInOut(duration: 0.12), value: hovered)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovered = $0 }
         }
     }
 }

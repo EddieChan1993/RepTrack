@@ -85,6 +85,11 @@ final class DataStore {
         save()
     }
 
+    func deleteSessions(_ ids: Set<UUID>) {
+        sessions.removeAll { ids.contains($0.id) }
+        save()
+    }
+
     func updateSession(_ session: ReviewSession) {
         guard let idx = sessions.firstIndex(where: { $0.id == session.id }) else { return }
         sessions[idx] = session
