@@ -178,8 +178,8 @@ struct AllLevelsContent: View {
                         Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
                     })
                 RecommendedLessonsCard()
-                    .frame(minWidth: 190, maxWidth: 240,
-                           height: chartCardHeight > 0 ? chartCardHeight : nil)
+                    .frame(minWidth: 190, maxWidth: 240)
+                    .frame(height: chartCardHeight > 0 ? chartCardHeight : nil)
             }
             .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         }
