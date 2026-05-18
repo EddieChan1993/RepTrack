@@ -310,46 +310,48 @@ struct RecommendedLessonsCard: View {
             }
             .frame(height: 28)
 
-            if recommendations.isEmpty {
-                Spacer()
-                Text("暂无课程数据")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                Spacer()
-            } else {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(recommendations, id: \.level.id) { rec in
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack(spacing: 6) {
-                                Text(rec.level.id)
-                                    .font(.caption).fontWeight(.semibold)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
-                                    .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
-                                Text(String(format: "均 %.1f 次", rec.avg))
-                                    .font(.caption2).foregroundStyle(.secondary)
-                            }
-                            ForEach(rec.lessons) { stat in
-                                HStack(spacing: 0) {
-                                    Text(stat.lesson.displayName)
-                                        .font(.callout)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text("\(stat.reviewCount)")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundStyle(stat.reviewCount == 0
-                                            ? Color.orange.opacity(0.85)
-                                            : Color.secondary)
-                                        .padding(.horizontal, 5).padding(.vertical, 2)
-                                        .background(
-                                            (stat.reviewCount == 0 ? Color.orange : Color.secondary)
-                                                .opacity(0.10),
-                                            in: RoundedRectangle(cornerRadius: 4)
-                                        )
+            ScrollView(.vertical, showsIndicators: true) {
+                if recommendations.isEmpty {
+                    Text("暂无课程数据")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 12)
+                } else {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(recommendations, id: \.level.id) { rec in
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack(spacing: 6) {
+                                    Text(rec.level.id)
+                                        .font(.caption).fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
+                                    Text(String(format: "均 %.1f 次", rec.avg))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                ForEach(rec.lessons) { stat in
+                                    HStack(spacing: 0) {
+                                        Text(stat.lesson.displayName)
+                                            .font(.callout)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Text("\(stat.reviewCount)")
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(stat.reviewCount == 0
+                                                ? Color.orange.opacity(0.85)
+                                                : Color.secondary)
+                                            .padding(.horizontal, 5).padding(.vertical, 2)
+                                            .background(
+                                                (stat.reviewCount == 0 ? Color.orange : Color.secondary)
+                                                    .opacity(0.10),
+                                                in: RoundedRectangle(cornerRadius: 4)
+                                            )
+                                    }
                                 }
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
