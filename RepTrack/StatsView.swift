@@ -1,0 +1,506 @@
+import SwiftUI
+import Charts
+import UniformTypeIdentifiers
+
+// MARK: - Main View
+
+struct StatsView: View {
+    @Environment(DataStore.self) private var store
+    @State private var selectedTab = "全部"
+    @State private var draggingId: String?
+
+    private var tabs: [String] { ["全部"] + store.levels.map(\.id) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    TabButton(title: "全部", isSelected: selectedTab == "全部") {
+                        selectedTab = "全部"
+                    }
+                    ForEach(store.levels, id: \.id) { level in
+                        TabButton(
+                            title: level.id,
+                            isSelected: selectedTab == level.id,
+                            action: { selectedTab = level.id },
+                            onDelete: {
+                                if selectedTab == level.id { selectedTab = "全部" }
+                                store.deleteLevel(level.id)
+                            }
+                        )
+                        .onDrag {
+                            draggingId = level.id
+                            return NSItemProvider(object: level.id as NSString)
+                        }
+                        .onDrop(of: [UTType.plainText], isTargeted: nil) { _ in
+                            guard let from = draggingId, from != level.id else { return false }
+                            store.swapLevels(from, level.id)
+                            draggingId = nil
+                            return true
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .frame(height: 44)
+            .background(.bar)
+
+            Divider()
+
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if selectedTab == "全部" {
+                            AllLevelsContent()
+                        } else if let stats = store.levelStats(for: selectedTab) {
+                            LevelContent(stats: stats, paneHeight: proxy.size.height)
+                        } else {
+                            ContentUnavailableView(
+                                "暂无课程",
+                                systemImage: "tray",
+                                description: Text("点击工具栏文件夹图标导入课程目录")
+                            )
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+        }
+        .onChange(of: store.levels) { _, _ in
+            if !tabs.contains(selectedTab) { selectedTab = "全部" }
+        }
+    }
+}
+
+// MARK: - Tab button
+
+struct TabButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    var onDelete: (() -> Void)? = nil
+    @State private var hovered = false
+    @State private var showDeleteConfirm = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .foregroundStyle(isSelected ? .primary : (hovered ? .primary : .secondary))
+                .padding(.leading, 14)
+                .padding(.trailing, onDelete != nil ? 4 : 14)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onTapGesture { action() }
+
+            if onDelete != nil {
+                Button { showDeleteConfirm = true } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.secondary.opacity(hovered ? 1 : 0))
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 6)
+            }
+        }
+        .background(
+            isSelected
+                ? AnyShapeStyle(Color.accentColor.opacity(0.12))
+                : AnyShapeStyle(hovered ? Color.secondary.opacity(0.08) : Color.clear),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .scaleEffect(hovered && !isSelected ? 1.03 : 1.0)
+        .animation(.easeInOut(duration: 0.12), value: hovered)
+        .onHover { hovered = $0 }
+        .confirmationDialog("删除「\(title)」等级？", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("删除", role: .destructive) { onDelete?() }
+        } message: {
+            Text("该等级下的所有课程将被移除，相关复习记录中的条目也会同步删除。")
+        }
+    }
+}
+
+// MARK: - "全部" content
+
+struct LevelCoverage: Identifiable {
+    let id: String; let total: Int; let reviewed: Int
+    var pct: Double { total > 0 ? Double(reviewed) / Double(total) * 100 : 0 }
+}
+
+struct AllLevelsContent: View {
+    @Environment(DataStore.self) private var store
+    @State private var reviewPeriod: StatPeriod = .week
+    @State private var coveragePeriod: StatPeriod = .week
+
+    private var totalLessons: Int { store.levels.reduce(0) { $0 + $1.lessons.count } }
+    private var coverage: Double {
+        guard totalLessons > 0 else { return 0 }
+        return Double(store.reviewedLessonCount(period: coveragePeriod)) / Double(totalLessons)
+    }
+    private var levelCoverages: [LevelCoverage] {
+        store.levels.map { lv in
+            let rev = lv.lessons.filter { store.reviewCount(for: $0.id) > 0 }.count
+            return LevelCoverage(id: lv.id, total: lv.lessons.count, reviewed: rev)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            StatCard("总课数", "\(totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
+            PeriodStatCard(
+                value: store.reviewedLessonCount(period: reviewPeriod),
+                color: Color(red: 0.00, green: 0.72, blue: 0.72),
+                period: $reviewPeriod
+            )
+            PeriodCoverageCard(
+                pct: coverage,
+                color: Color(red: 0.62, green: 0.15, blue: 0.90),
+                period: $coveragePeriod
+            )
+        }
+        if levelCoverages.filter({ $0.total > 0 }).isEmpty {
+            ContentUnavailableView("暂无课程数据", systemImage: "folder.badge.plus",
+                description: Text("点击工具栏文件夹图标导入课程目录"))
+        } else {
+            CoverageChartCard(coverages: levelCoverages)
+        }
+    }
+}
+
+struct CoverageChartCard: View {
+    let coverages: [LevelCoverage]
+    @State private var hoveredId: String?
+    @State private var animate = false
+
+    private var hoveredItem: LevelCoverage? { coverages.first { $0.id == hoveredId } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("各等级覆盖率").font(.headline)
+                Spacer()
+                if let lv = hoveredItem {
+                    CoverageTooltip(lv: lv)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
+                }
+            }
+            .frame(height: 28)
+            .animation(.easeInOut(duration: 0.12), value: hoveredId)
+
+            coverageChart
+                .frame(height: CGFloat(max(coverages.count, 1)) * 44 + 16)
+                .animation(.spring(response: 0.6, dampingFraction: 0.82), value: animate)
+        }
+        .padding(16)
+        .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .onAppear {
+            withAnimation(.spring(response: 0.65, dampingFraction: 0.8).delay(0.05)) { animate = true }
+        }
+    }
+
+    private var coverageChart: some View {
+        Chart(coverages) { lv in
+            let dimmed = hoveredId != nil && hoveredId != lv.id
+            let opacity: Double = dimmed ? 0.3 : 1.0
+            let xVal: Double = animate ? lv.pct : 0
+            BarMark(x: .value("覆盖率 %", xVal), y: .value("等级", lv.id))
+                .foregroundStyle(levelColor(lv.id).opacity(opacity).gradient)
+                .cornerRadius(6)
+                .annotation(position: .trailing, alignment: .leading, spacing: 6) {
+                    Text(String(format: "%.0f%%", lv.pct))
+                        .font(.caption2)
+                        .foregroundStyle(hoveredId == lv.id ? Color.primary : Color.secondary)
+                }
+        }
+        .chartXScale(domain: 0...100)
+        .chartXAxis {
+            AxisMarks(values: [0, 25, 50, 75, 100]) {
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                AxisValueLabel().font(.caption2)
+            }
+        }
+        .chartYAxis {
+            AxisMarks { AxisValueLabel().font(.system(size: 12, weight: .medium)) }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Color.clear.contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let loc):
+                            let frame = geo[proxy.plotFrame!]
+                            let y = loc.y - frame.origin.y
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                hoveredId = proxy.value(atY: y, as: String.self)
+                            }
+                        case .ended:
+                            withAnimation(.easeInOut(duration: 0.1)) { hoveredId = nil }
+                        }
+                    }
+            }
+        }
+    }
+}
+
+private struct CoverageTooltip: View {
+    let lv: LevelCoverage
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(levelColor(lv.id)).frame(width: 7, height: 7)
+            Text(lv.id).font(.caption).fontWeight(.medium)
+            Text("·").foregroundStyle(.secondary)
+            Text("\(lv.reviewed)/\(lv.total) 课  \(String(format: "%.0f%%", lv.pct))")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(.secondary.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Single level content
+
+struct LevelContent: View {
+    @Environment(DataStore.self) private var store
+    let stats: LevelStats
+    var paneHeight: CGFloat = 400
+    @State private var reviewPeriod: StatPeriod = .week
+    @State private var coveragePeriod: StatPeriod = .week
+
+    private var coverage: Double {
+        guard stats.totalLessons > 0 else { return 0 }
+        return Double(store.reviewedLessonCount(levelId: stats.level.id, period: coveragePeriod)) / Double(stats.totalLessons)
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            StatCard("总课数", "\(stats.totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
+            PeriodStatCard(
+                value: store.reviewedLessonCount(levelId: stats.level.id, period: reviewPeriod),
+                color: Color(red: 0.00, green: 0.72, blue: 0.72),
+                period: $reviewPeriod
+            )
+            PeriodCoverageCard(
+                pct: coverage,
+                color: Color(red: 0.62, green: 0.15, blue: 0.90),
+                period: $coveragePeriod
+            )
+        }
+        if stats.totalLessons > 0 {
+            LessonCountChartCard(stats: stats, paneHeight: paneHeight)
+        } else {
+            ContentUnavailableView("该等级暂无课程", systemImage: "doc.text",
+                description: Text("导入文件夹后自动填充课程列表"))
+        }
+    }
+}
+
+struct LessonCountChartCard: View {
+    let stats: LevelStats
+    var paneHeight: CGFloat = 400
+    @State private var hoveredNumber: String?
+    @State private var animate = false
+
+    // stat cards (~64) + spacing (16) + chart-card header (38) + card padding (32) + scroll padding (32)
+    private var chartHeight: CGFloat { max(150, paneHeight - 182) }
+
+    private var hoveredStat: LessonStat? {
+        guard let key = hoveredNumber else { return nil }
+        return stats.lessonStats.first { paddedDisplay($0.lesson.number) == key }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("各课复习次数").font(.headline)
+                Spacer()
+                if let st = hoveredStat {
+                    LessonTooltip(stat: st, levelId: stats.level.id)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
+                }
+            }
+            .frame(height: 28)
+            .animation(.easeInOut(duration: 0.1), value: hoveredNumber)
+
+            lessonChart
+                .frame(height: chartHeight)
+                .animation(.spring(response: 0.55, dampingFraction: 0.8), value: animate)
+                .animation(.easeInOut(duration: 0.2), value: chartHeight)
+        }
+        .padding(16)
+        .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.05)) { animate = true }
+        }
+    }
+
+    private var lessonChart: some View {
+        Chart(stats.lessonStats) { stat in
+            let key = paddedDisplay(stat.lesson.number)
+            let dimmed = hoveredNumber != nil && hoveredNumber != key
+            let barStyle: AnyShapeStyle = stat.reviewCount == 0
+                ? AnyShapeStyle(Color.gray.opacity(dimmed ? 0.1 : 0.22))
+                : AnyShapeStyle(levelColor(stats.level.id).opacity(dimmed ? 0.25 : 1.0).gradient)
+            let yVal = animate ? stat.reviewCount : 0
+            BarMark(x: .value("课程", key), y: .value("次数", yVal))
+                .foregroundStyle(barStyle)
+                .cornerRadius(4)
+        }
+        .chartYAxis {
+            AxisMarks(values: .automatic(desiredCount: 5)) {
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                AxisValueLabel().font(.caption2)
+            }
+        }
+        .chartXAxis {
+            AxisMarks {
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3, dash: [3]))
+                AxisValueLabel(orientation: .verticalReversed).font(.system(size: 10))
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Color.clear.contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let loc):
+                            let frame = geo[proxy.plotFrame!]
+                            let x = loc.x - frame.origin.x
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                hoveredNumber = proxy.value(atX: x, as: String.self)
+                            }
+                        case .ended:
+                            withAnimation(.easeInOut(duration: 0.1)) { hoveredNumber = nil }
+                        }
+                    }
+            }
+        }
+    }
+}
+
+private struct LessonTooltip: View {
+    let stat: LessonStat
+    let levelId: String
+    var body: some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(stat.reviewCount > 0 ? levelColor(levelId) : Color.gray.opacity(0.5))
+                .frame(width: 8, height: 8)
+            Text(stat.lesson.displayName)
+                .font(.caption).fontWeight(.medium)
+                .lineLimit(1)
+            Text("·").foregroundStyle(.secondary)
+            Text(stat.reviewCount == 0 ? "未复习" : "复习 \(stat.reviewCount) 次")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(.secondary.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Period stat card (tappable, cycles day → week → month)
+
+struct PeriodStatCard: View {
+    let value: Int
+    let color: Color
+    @Binding var period: StatPeriod
+    @State private var hovered = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("\(value)")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+
+            HStack(spacing: 4) {
+                Text("\(period.label)复习")
+                    .font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(color.opacity(hovered ? 0.22 : 0.14))
+                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
+            }
+        )
+        .scaleEffect(hovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.12), value: hovered)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
+        }
+        .onHover { hovered = $0 }
+        .help("点击切换：今日 / 本周 / 本月")
+    }
+}
+
+// MARK: - Period coverage card (tappable, cycles day → week → month)
+
+struct PeriodCoverageCard: View {
+    let pct: Double
+    let color: Color
+    @Binding var period: StatPeriod
+    @State private var hovered = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(String(format: "%.0f%%", pct * 100))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+
+            HStack(spacing: 4) {
+                Text("\(period.label)覆盖率")
+                    .font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(color.opacity(hovered ? 0.22 : 0.14))
+                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
+            }
+        )
+        .scaleEffect(hovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.12), value: hovered)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
+        }
+        .onHover { hovered = $0 }
+        .help("点击切换：今日 / 本周 / 本月")
+    }
+}
+
+// MARK: - Shared stat card
+
+struct StatCard: View {
+    let title: String; let value: String; let color: Color
+    init(_ title: String, _ value: String, _ color: Color) {
+        self.title = title; self.value = value; self.color = color
+    }
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(color.opacity(0.14))
+                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
+            }
+        )
+    }
+}
