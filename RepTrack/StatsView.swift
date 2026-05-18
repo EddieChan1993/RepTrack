@@ -122,6 +122,13 @@ struct TabButton: View {
     }
 }
 
+private struct CardHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 // MARK: - "全部" content
 
 struct LevelCoverage: Identifiable {
@@ -133,6 +140,7 @@ struct AllLevelsContent: View {
     @Environment(DataStore.self) private var store
     @State private var reviewPeriod: StatPeriod = .week
     @State private var coveragePeriod: StatPeriod = .week
+    @State private var chartCardHeight: CGFloat = 0
 
     private var totalLessons: Int { store.levels.reduce(0) { $0 + $1.lessons.count } }
     private var coverage: Double {
@@ -166,9 +174,14 @@ struct AllLevelsContent: View {
         } else {
             HStack(alignment: .top, spacing: 14) {
                 CoverageChartCard(coverages: levelCoverages)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
+                    })
                 RecommendedLessonsCard()
-                    .frame(minWidth: 190, maxWidth: 240)
+                    .frame(minWidth: 190, maxWidth: 240,
+                           height: chartCardHeight > 0 ? chartCardHeight : nil)
             }
+            .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         }
     }
 }
@@ -356,7 +369,6 @@ struct RecommendedLessonsCard: View {
             }
         }
         .padding(16)
-        .frame(maxHeight: .infinity, alignment: .top)
         .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
     }
 }
