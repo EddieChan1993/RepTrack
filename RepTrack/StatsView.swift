@@ -164,7 +164,11 @@ struct AllLevelsContent: View {
             ContentUnavailableView("暂无课程数据", systemImage: "folder.badge.plus",
                 description: Text("点击工具栏文件夹图标导入课程目录"))
         } else {
-            CoverageChartCard(coverages: levelCoverages)
+            HStack(alignment: .top, spacing: 14) {
+                CoverageChartCard(coverages: levelCoverages)
+                RecommendedLessonsCard()
+                    .frame(minWidth: 190, maxWidth: 240)
+            }
         }
     }
 }
@@ -256,6 +260,102 @@ private struct CoverageTooltip: View {
         }
         .padding(.horizontal, 9).padding(.vertical, 4)
         .background(.secondary.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Recommended lessons card
+
+struct RecommendedLessonsCard: View {
+    @Environment(DataStore.self) private var store
+
+    private struct LevelRec {
+        let level: Level
+        let avg: Double
+        let lessons: [LessonStat]
+    }
+
+    private var recommendations: [LevelRec] {
+        store.levels.compactMap { level in
+            guard !level.lessons.isEmpty else { return nil }
+            let stats = level.lessons.map { lesson in
+                LessonStat(
+                    lesson: lesson,
+                    reviewCount: store.reviewCount(for: lesson.id),
+                    lastReviewed: store.lastReviewed(lessonId: lesson.id)
+                )
+            }
+            let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
+            // Sort: fewest reviews first; tiebreak by oldest last-review (never reviewed = highest priority)
+            let sorted = stats.sorted { a, b in
+                if a.reviewCount != b.reviewCount { return a.reviewCount < b.reviewCount }
+                switch (a.lastReviewed, b.lastReviewed) {
+                case (nil, nil):   return lessonNumberLess(a.lesson.number, b.lesson.number)
+                case (nil, _):     return true
+                case (_, nil):     return false
+                case (let x?, let y?): return x < y
+                }
+            }
+            return LevelRec(level: level, avg: avg, lessons: Array(sorted.prefix(4)))
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("推荐复习").font(.headline)
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(height: 28)
+
+            if recommendations.isEmpty {
+                Spacer()
+                Text("暂无课程数据")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                Spacer()
+            } else {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(recommendations, id: \.level.id) { rec in
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack(spacing: 6) {
+                                Text(rec.level.id)
+                                    .font(.caption).fontWeight(.semibold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
+                                Text(String(format: "均 %.1f 次", rec.avg))
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                            ForEach(rec.lessons) { stat in
+                                HStack(spacing: 0) {
+                                    Text(stat.lesson.displayName)
+                                        .font(.callout)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text("\(stat.reviewCount)")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(stat.reviewCount == 0
+                                            ? Color.orange.opacity(0.85)
+                                            : Color.secondary)
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(
+                                            (stat.reviewCount == 0 ? Color.orange : Color.secondary)
+                                                .opacity(0.10),
+                                            in: RoundedRectangle(cornerRadius: 4)
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
