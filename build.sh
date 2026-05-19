@@ -2,7 +2,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/.build"
-APP_PATH="$BUILD_DIR/Build/Products/Debug/RepTrack.app"
+APP_PATH="$BUILD_DIR/Build/Products/Debug/BananaTrack.app"
 LOG="$BUILD_DIR/build.log"
 
 G='\033[0;32m'   # green
@@ -21,14 +21,14 @@ mkdir -p "$BUILD_DIR"
 
 echo ""
 printf "  ${B}${HR}${N}\n"
-printf "  ${B}  RepTrack Builder${N}\n"
+printf "  ${B}  BananaTrack Builder 🍌${N}\n"
 printf "  ${B}${HR}${N}\n"
 echo ""
 
 # ── Kill old instance ──────────────────────────────
-OLD_PID=$(pgrep -x "RepTrack" 2>/dev/null)
+OLD_PID=$(pgrep -x "BananaTrack" 2>/dev/null)
 if [ -n "$OLD_PID" ]; then
-    pkill -x "RepTrack" 2>/dev/null
+    pkill -x "BananaTrack" 2>/dev/null
     sleep 0.6
     ok "Killed old instance (PID $OLD_PID)"
 fi
@@ -70,6 +70,6 @@ ok "Launched"
 # ── Summary ────────────────────────────────────────
 echo ""
 printf "  ${HR}\n"
-printf "  ${G}${B}✅  RepTrack.app${N}  ${D}(Debug · local only)${N}\n"
+printf "  ${G}${B}✅  BananaTrack.app${N}  ${D}(Debug · local only)${N}\n"
 printf "  ${HR}\n"
 echo ""
