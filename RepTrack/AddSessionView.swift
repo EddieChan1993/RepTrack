@@ -57,7 +57,7 @@ struct AddSessionView: View {
                     }
                 }
 
-                Section("课程条目") {
+                Section {
                     if !isEditMode {
                         DatePicker("日期", selection: $entryDate, displayedComponents: .date)
                     }
