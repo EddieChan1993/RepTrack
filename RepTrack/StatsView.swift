@@ -323,7 +323,7 @@ struct RecommendedLessonsCard: View {
             }
             .frame(height: 28)
 
-            ScrollView(.vertical, showsIndicators: true) {
+            ScrollView(.vertical, showsIndicators: false) {
                 if recommendations.isEmpty {
                     Text("暂无课程数据")
                         .font(.caption).foregroundStyle(.secondary)
@@ -347,7 +347,7 @@ struct RecommendedLessonsCard: View {
                                         Text(stat.lesson.displayName)
                                             .font(.callout)
                                             .lineLimit(1)
-                                        Spacer()
+                                        Spacer(minLength: 8)
                                         Text("\(stat.reviewCount)")
                                             .font(.system(size: 11, design: .monospaced))
                                             .foregroundStyle(stat.reviewCount == 0
@@ -451,7 +451,7 @@ struct LevelRecommendedCard: View {
             }
             .frame(height: 28)
 
-            ScrollView(.vertical, showsIndicators: true) {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Text(stats.level.id)
@@ -466,7 +466,7 @@ struct LevelRecommendedCard: View {
                         HStack(spacing: 0) {
                             Text(stat.lesson.displayName)
                                 .font(.callout).lineLimit(1)
-                            Spacer()
+                            Spacer(minLength: 8)
                             Text("\(stat.reviewCount)")
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(stat.reviewCount == 0
