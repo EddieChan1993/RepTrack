@@ -257,14 +257,34 @@ final class DataStore {
         }
 
         if let idx = levels.firstIndex(where: { $0.id == levelId }) {
+            // Update titles for existing lessons; append genuinely new ones
             for lesson in newLessons {
-                // Find integer-equal existing lesson (handles "2" vs "002" duplicates)
                 if let existIdx = levels[idx].lessons.firstIndex(where: { sameNumber($0.number, lesson.number) }) {
                     if !lesson.title.isEmpty {
                         levels[idx].lessons[existIdx].title = lesson.title
                     }
                 } else {
                     levels[idx].lessons.append(lesson)
+                }
+            }
+            // Remove lessons whose files no longer exist in the folder
+            let removedIds = Set(
+                levels[idx].lessons
+                    .filter { existing in !newLessons.contains(where: { sameNumber($0.number, existing.number) }) }
+                    .map(\.id)
+            )
+            if !removedIds.isEmpty {
+                levels[idx].lessons.removeAll { removedIds.contains($0.id) }
+                // Clean up session references to deleted lessons
+                sessions = sessions.compactMap { s in
+                    var copy = s
+                    copy.items = copy.items.compactMap { item in
+                        guard item.levelId == levelId else { return item }
+                        var i = item
+                        i.lessonIds.removeAll { removedIds.contains($0) }
+                        return i.lessonIds.isEmpty ? nil : i
+                    }
+                    return copy.items.isEmpty ? nil : copy
                 }
             }
             levels[idx].lessons = deduplicatedByNumber(levels[idx].lessons)
