@@ -8,6 +8,9 @@ struct StatsView: View {
     @Environment(DataStore.self) private var store
     @State private var selectedTab = "全部"
     @State private var draggingId: String?
+    @State private var isRefreshing = false
+    @State private var refreshHovered = false
+    @State private var refreshRotation: Double = 0
 
     private var tabs: [String] { ["全部"] + store.levels.map(\.id) }
 
@@ -52,19 +55,30 @@ struct StatsView: View {
                 if canRefresh {
                     Divider().frame(height: 20)
                     Button {
-                        if selectedTab == "全部" {
-                            store.refreshAllLevels()
-                        } else {
-                            store.refreshLevel(selectedTab)
+                        guard !isRefreshing else { return }
+                        isRefreshing = true
+                        withAnimation(.linear(duration: 0.6)) {
+                            refreshRotation += 360
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+                            if selectedTab == "全部" {
+                                store.refreshAllLevels()
+                            } else {
+                                store.refreshLevel(selectedTab)
+                            }
+                            isRefreshing = false
                         }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(refreshHovered ? Color.primary : .secondary)
+                            .rotationEffect(.degrees(refreshRotation))
                             .frame(width: 44, height: 44)
+                            .background(refreshHovered ? Color.primary.opacity(0.06) : .clear)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onHover { refreshHovered = $0 }
                     .help(selectedTab == "全部" ? "重新扫描所有等级文件夹" : "重新扫描 \(selectedTab) 文件夹")
                 }
             }
