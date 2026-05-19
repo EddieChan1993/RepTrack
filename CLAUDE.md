@@ -55,4 +55,58 @@ Level order is user-controlled via drag-and-drop in the tab bar (`store.swapLeve
 Whenever sorting session items for display, sort by `store.levels.firstIndex` — never alphabetically.
 
 ## Build
-Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external dependencies.
+Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external dependencies.  
+快速构建脚本：`bash build.sh`（自动杀旧进程、构建、启动）
+
+---
+
+## 历史问题与解决方案
+
+### 1. 多等级同时提交丢失数据
+**问题**：AddSessionView 中，用户在 S2 加完课程切换到 S3 再加课程，最后点保存时 S3 的选择丢失。  
+**原因**：`save()` 直接跳过了当前已选但未点"添加"的输入。  
+**解决**：`save()` 开头增加 `if canAddEntry { addEntry() }`，先 flush 当前选中的 chip 再执行保存。
+
+---
+
+### 2. 重新导入文件夹时课程不同步
+**问题**：删除或重命名课程文件后重新导入同一等级文件夹，已删除的课程仍然保留，改名的课程未更新标题。  
+**解决**：`importSingleLevel` 分两步处理：
+1. 遍历新文件列表，已有课程更新标题，新课程追加。
+2. 找出旧课程中编号不在新列表的（用 `sameNumber` 比较），从 `levels` 中删除，并级联清理 `sessions` 中引用了这些课程的 item；item 全空则整条 session 删除。
+
+---
+
+### 3. `PRODUCT_NAME` 导致 .app 名字不对
+**问题**：将 app 改名为 BananaTrack 后，`build.sh` 找不到 `BananaTrack.app`，因为构建产物仍叫 `RepTrack.app`。  
+**原因**：`PRODUCT_NAME = $(TARGET_NAME)`，而 target 名是 `RepTrack`。  
+**解决**：在 `project.pbxproj` 的 Debug 和 Release 两个 configuration 中均显式设置 `PRODUCT_NAME = BananaTrack`。
+
+---
+
+### 4. 推荐复习卡高度与图表卡不一致
+**问题**：`RecommendedLessonsCard` / `LevelRecommendedCard` 放在外层 `ScrollView` 内时，`.frame(height:)` 传入计算值无法匹配左侧图表卡的实际渲染高度。  
+**解决**：用 `PreferenceKey`（`CardHeightKey`）在图表卡的 `background(GeometryReader)` 中读取实际渲染高度，通过 `.onPreferenceChange` 写入 `@State var chartCardHeight`，再 `.frame(height: chartCardHeight > 0 ? chartCardHeight : nil)` 约束推荐卡。
+
+---
+
+### 5. `.frame(minWidth:maxWidth:height:)` 编译报错
+**错误**：`extra argument 'height' in call`  
+**原因**：SwiftUI 的 `.frame()` 不允许在同一次调用中混用 min/max 尺寸参数和固定尺寸参数。  
+**解决**：拆成两次调用：
+```swift
+.frame(minWidth: 190, maxWidth: 240)
+.frame(height: chartCardHeight > 0 ? chartCardHeight : nil)
+```
+
+---
+
+### 6. 推荐卡滚动条遮住数字徽章
+**问题**：`ScrollView` 的滚动条指示器叠在右侧复习次数徽章上。  
+**解决**：`showsIndicators: false` 隐藏滚动条；同时将 `Spacer()` 改为 `Spacer(minLength: 8)` 保证徽章与课程名之间有最小间距。
+
+---
+
+### 7. X 轴标签过多时拥挤重叠
+**问题**：课程数超过 30 时，x 轴标签密集重叠难以阅读。  
+**解决**：动态计算显示步长 `xAxisStride = ceil(n / 30)`，在 `AxisMarks` 闭包中只对 `xAxisValues`（按步长筛选后的 key 集合）中的值渲染 `AxisValueLabel`，网格线仍对所有柱显示。规则：≤30 课全显示，每多 30 课步长加一。
