@@ -69,6 +69,7 @@ struct AddSessionView: View {
 
                     HStack(spacing: 8) {
                         TextField("请选择你当日复习的课程", text: $lessonInput)
+                            .labelsHidden()
                             .onSubmit { addEntry() }
                         AddButton(enabled: canAddEntry) { addEntry() }
                     }
