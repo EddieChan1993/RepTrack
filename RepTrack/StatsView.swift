@@ -501,14 +501,11 @@ struct LessonCountChartCard: View {
         return stats.lessonStats.first { paddedDisplay($0.lesson.number) == key }
     }
 
-    // Show every Nth label so the x-axis doesn't crowd.
-    // ≤15 → every 1; ≤30 → every 2; ≤60 → every 3; else every 5.
+    // ≤30 lessons → show all; >30 → show every ceil(n/30)th label.
     private var xAxisStride: Int {
         let n = stats.lessonStats.count
-        if n <= 15 { return 1 }
-        if n <= 30 { return 2 }
-        if n <= 60 { return 3 }
-        return 5
+        guard n > 30 else { return 1 }
+        return Int(ceil(Double(n) / 30.0))
     }
 
     private var xAxisValues: [String] {
