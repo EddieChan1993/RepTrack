@@ -240,6 +240,19 @@ final class DataStore {
         save()
     }
 
+    func refreshLevel(_ levelId: String) {
+        guard let url = levels.first(where: { $0.id == levelId })?.sourceURL else { return }
+        importSingleLevel(url)
+        save()
+    }
+
+    func refreshAllLevels() {
+        let urls = levels.compactMap(\.sourceURL)
+        guard !urls.isEmpty else { return }
+        for url in urls { importSingleLevel(url) }
+        save()
+    }
+
     private func importSingleLevel(_ url: URL) {
         let levelId = url.lastPathComponent
         let files = (try? FileManager.default.contentsOfDirectory(
@@ -289,8 +302,11 @@ final class DataStore {
             }
             levels[idx].lessons = deduplicatedByNumber(levels[idx].lessons)
             levels[idx].lessons.sort { lessonNumberLess($0.number, $1.number) }
+            levels[idx].sourceURL = url
         } else {
-            levels.append(Level(id: levelId, lessons: deduplicatedByNumber(newLessons)))
+            var level = Level(id: levelId, lessons: deduplicatedByNumber(newLessons))
+            level.sourceURL = url
+            levels.append(level)
         }
     }
 

@@ -11,36 +11,62 @@ struct StatsView: View {
 
     private var tabs: [String] { ["全部"] + store.levels.map(\.id) }
 
+    private var canRefresh: Bool {
+        if selectedTab == "全部" { return store.levels.contains { $0.sourceURL != nil } }
+        return store.levels.first(where: { $0.id == selectedTab })?.sourceURL != nil
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    TabButton(title: "全部", isSelected: selectedTab == "全部") {
-                        selectedTab = "全部"
-                    }
-                    ForEach(store.levels, id: \.id) { level in
-                        TabButton(
-                            title: level.id,
-                            isSelected: selectedTab == level.id,
-                            action: { selectedTab = level.id },
-                            onDelete: {
-                                if selectedTab == level.id { selectedTab = "全部" }
-                                store.deleteLevel(level.id)
+            HStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        TabButton(title: "全部", isSelected: selectedTab == "全部") {
+                            selectedTab = "全部"
+                        }
+                        ForEach(store.levels, id: \.id) { level in
+                            TabButton(
+                                title: level.id,
+                                isSelected: selectedTab == level.id,
+                                action: { selectedTab = level.id },
+                                onDelete: {
+                                    if selectedTab == level.id { selectedTab = "全部" }
+                                    store.deleteLevel(level.id)
+                                }
+                            )
+                            .onDrag {
+                                draggingId = level.id
+                                return NSItemProvider(object: level.id as NSString)
                             }
-                        )
-                        .onDrag {
-                            draggingId = level.id
-                            return NSItemProvider(object: level.id as NSString)
-                        }
-                        .onDrop(of: [UTType.plainText], isTargeted: nil) { _ in
-                            guard let from = draggingId, from != level.id else { return false }
-                            store.swapLevels(from, level.id)
-                            draggingId = nil
-                            return true
+                            .onDrop(of: [UTType.plainText], isTargeted: nil) { _ in
+                                guard let from = draggingId, from != level.id else { return false }
+                                store.swapLevels(from, level.id)
+                                draggingId = nil
+                                return true
+                            }
                         }
                     }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
+
+                if canRefresh {
+                    Divider().frame(height: 20)
+                    Button {
+                        if selectedTab == "全部" {
+                            store.refreshAllLevels()
+                        } else {
+                            store.refreshLevel(selectedTab)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(selectedTab == "全部" ? "重新扫描所有等级文件夹" : "重新扫描 \(selectedTab) 文件夹")
+                }
             }
             .frame(height: 44)
             .background(.bar)
