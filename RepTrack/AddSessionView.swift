@@ -80,20 +80,18 @@ struct AddSessionView: View {
                     }
 
                     if let level = currentLevel, !level.lessons.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(level.lessons.sorted { lessonNumberLess($0.number, $1.number) }) { lesson in
-                                    Button { appendChip(paddedDisplay(lesson.number)) } label: {
-                                        Text(lesson.displayName)
-                                            .font(.caption)
-                                            .padding(.horizontal, 8).padding(.vertical, 4)
-                                            .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                                    }
-                                    .buttonStyle(.plain)
+                        FlowLayout(spacing: 6) {
+                            ForEach(level.lessons.sorted { lessonNumberLess($0.number, $1.number) }) { lesson in
+                                Button { appendChip(paddedDisplay(lesson.number)) } label: {
+                                    Text(lesson.displayName)
+                                        .font(.caption)
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
                                 }
+                                .buttonStyle(.plain)
                             }
-                            .padding(.vertical, 4)
                         }
+                        .padding(.vertical, 4)
                     }
                 }
 
