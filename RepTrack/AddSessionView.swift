@@ -70,9 +70,7 @@ struct AddSessionView: View {
                     HStack(spacing: 8) {
                         TextField("课程编号，逗号分隔（如：43, 44）", text: $lessonInput)
                             .onSubmit { addEntry() }
-                        Button("添加") { addEntry() }
-                            .disabled(!canAddEntry)
-                            .buttonStyle(.borderedProminent)
+                        AddButton(enabled: canAddEntry) { addEntry() }
                     }
 
                     if !error.isEmpty {
@@ -82,13 +80,11 @@ struct AddSessionView: View {
                     if let level = currentLevel, !level.lessons.isEmpty {
                         FlowLayout(spacing: 6) {
                             ForEach(level.lessons.sorted { lessonNumberLess($0.number, $1.number) }) { lesson in
-                                Button { appendChip(paddedDisplay(lesson.number)) } label: {
-                                    Text(lesson.displayName)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8).padding(.vertical, 4)
-                                        .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                                }
-                                .buttonStyle(.plain)
+                                LessonChip(
+                                    lesson: lesson,
+                                    levelId: level.id,
+                                    isSelected: isChipSelected(lesson)
+                                ) { appendChip(paddedDisplay(lesson.number)) }
                             }
                         }
                         .padding(.vertical, 4)
@@ -154,6 +150,12 @@ struct AddSessionView: View {
     private func appendChip(_ number: String) {
         let current = lessonInput.trimmingCharacters(in: .whitespaces)
         lessonInput = current.isEmpty ? number : "\(current), \(number)"
+    }
+
+    private func isChipSelected(_ lesson: Lesson) -> Bool {
+        lessonInput.split(separator: ",")
+            .map { normalizeNumber(String($0)) }
+            .contains { sameNumber($0, lesson.number) }
     }
 
     private func addEntry() {
@@ -252,6 +254,66 @@ struct AddSessionView: View {
             }
         }
         dismiss()
+    }
+}
+
+// MARK: - Chip & button components
+
+private struct LessonChip: View {
+    let lesson: Lesson
+    let levelId: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button { onTap() } label: {
+            Text(lesson.displayName)
+                .font(.caption)
+                .foregroundStyle(isSelected ? .white : .primary)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(
+                    isSelected
+                        ? AnyShapeStyle(levelColor(levelId).opacity(hovered ? 0.75 : 1.0))
+                        : AnyShapeStyle(Color.secondary.opacity(hovered ? 0.22 : 0.10)),
+                    in: RoundedRectangle(cornerRadius: 6)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? levelColor(levelId).opacity(0.4) : Color.clear, lineWidth: 1)
+                )
+                .scaleEffect(hovered ? 1.05 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: hovered)
+                .animation(.easeInOut(duration: 0.1), value: isSelected)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+    }
+}
+
+private struct AddButton: View {
+    let enabled: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button { action() } label: {
+            Text("添加")
+                .fontWeight(.medium)
+                .foregroundStyle(enabled ? .white : Color.secondary)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(
+                    enabled
+                        ? AnyShapeStyle(Color.accentColor.opacity(hovered ? 0.75 : 1.0))
+                        : AnyShapeStyle(Color.secondary.opacity(0.12)),
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .scaleEffect(enabled && hovered ? 1.04 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: hovered)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .onHover { if enabled { hovered = $0 } }
     }
 }
 
