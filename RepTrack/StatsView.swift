@@ -501,6 +501,24 @@ struct LessonCountChartCard: View {
         return stats.lessonStats.first { paddedDisplay($0.lesson.number) == key }
     }
 
+    // Show every Nth label so the x-axis doesn't crowd.
+    // ≤15 → every 1; ≤30 → every 2; ≤60 → every 3; else every 5.
+    private var xAxisStride: Int {
+        let n = stats.lessonStats.count
+        if n <= 15 { return 1 }
+        if n <= 30 { return 2 }
+        if n <= 60 { return 3 }
+        return 5
+    }
+
+    private var xAxisValues: [String] {
+        let sorted = stats.lessonStats.sorted { lessonNumberLess($0.lesson.number, $1.lesson.number) }
+        let stride = xAxisStride
+        return sorted.enumerated().compactMap { idx, stat in
+            idx % stride == 0 ? paddedDisplay(stat.lesson.number) : nil
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -545,9 +563,11 @@ struct LessonCountChartCard: View {
             }
         }
         .chartXAxis {
-            AxisMarks {
+            AxisMarks { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3, dash: [3]))
-                AxisValueLabel(orientation: .verticalReversed).font(.system(size: 10))
+                if let key = value.as(String.self), xAxisValues.contains(key) {
+                    AxisValueLabel(orientation: .verticalReversed).font(.system(size: 10))
+                }
             }
         }
         .chartOverlay { proxy in
