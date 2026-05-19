@@ -83,7 +83,13 @@ struct AddSessionView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                            AddButton(enabled: canAddEntry) { addEntry() }
+                            HStack(spacing: 8) {
+                                Spacer()
+                                if !lessonInput.isEmpty {
+                                    ClearButton { lessonInput = "" }
+                                }
+                                AddButton(enabled: canAddEntry) { addEntry() }
+                            }
                         }
                         .padding(.vertical, 4)
                     }
@@ -290,6 +296,28 @@ private struct LessonChip: View {
                 .scaleEffect(hovered ? 1.05 : 1.0)
                 .animation(.easeInOut(duration: 0.1), value: hovered)
                 .animation(.easeInOut(duration: 0.1), value: isSelected)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+    }
+}
+
+private struct ClearButton: View {
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button { action() } label: {
+            Text("清除")
+                .fontWeight(.medium)
+                .foregroundStyle(hovered ? .white : Color.secondary)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(
+                    hovered ? AnyShapeStyle(Color.secondary.opacity(0.5)) : AnyShapeStyle(Color.secondary.opacity(0.12)),
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .scaleEffect(hovered ? 1.04 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: hovered)
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
