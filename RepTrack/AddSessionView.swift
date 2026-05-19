@@ -68,7 +68,7 @@ struct AddSessionView: View {
                     }
 
                     HStack(spacing: 8) {
-                        TextField("课程编号，逗号分隔（如：43, 44）", text: $lessonInput)
+                        TextField("请选择你当日复习的课程", text: $lessonInput)
                             .onSubmit { addEntry() }
                         AddButton(enabled: canAddEntry) { addEntry() }
                     }
@@ -148,8 +148,15 @@ struct AddSessionView: View {
     }
 
     private func appendChip(_ number: String) {
-        let current = lessonInput.trimmingCharacters(in: .whitespaces)
-        lessonInput = current.isEmpty ? number : "\(current), \(number)"
+        var parts = lessonInput.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if let idx = parts.firstIndex(where: { sameNumber($0, number) }) {
+            parts.remove(at: idx)
+        } else {
+            parts.append(number)
+        }
+        lessonInput = parts.joined(separator: ", ")
     }
 
     private func isChipSelected(_ lesson: Lesson) -> Bool {
