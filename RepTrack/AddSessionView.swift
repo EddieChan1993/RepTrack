@@ -63,7 +63,6 @@ struct AddSessionView: View {
                     }
 
                     Picker("等级", selection: $selectedLevelId) {
-                        Text("选择等级…").tag("")
                         ForEach(store.levels) { lv in Text(lv.id).tag(lv.id) }
                     }
 
