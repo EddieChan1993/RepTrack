@@ -381,6 +381,7 @@ struct LevelContent: View {
     var paneHeight: CGFloat = 400
     @State private var reviewPeriod: StatPeriod = .week
     @State private var coveragePeriod: StatPeriod = .week
+    @State private var chartCardHeight: CGFloat = 0
 
     private var coverage: Double {
         guard stats.totalLessons > 0 else { return 0 }
@@ -402,11 +403,87 @@ struct LevelContent: View {
             )
         }
         if stats.totalLessons > 0 {
-            LessonCountChartCard(stats: stats, paneHeight: paneHeight)
+            HStack(alignment: .top, spacing: 14) {
+                LessonCountChartCard(stats: stats, paneHeight: paneHeight)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
+                    })
+                LevelRecommendedCard(stats: stats)
+                    .frame(minWidth: 190, maxWidth: 240)
+                    .frame(height: chartCardHeight > 0 ? chartCardHeight : nil)
+            }
+            .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         } else {
             ContentUnavailableView("该等级暂无课程", systemImage: "doc.text",
                 description: Text("导入文件夹后自动填充课程列表"))
         }
+    }
+}
+
+struct LevelRecommendedCard: View {
+    let stats: LevelStats
+
+    private var avg: Double {
+        guard !stats.lessonStats.isEmpty else { return 0 }
+        return Double(stats.lessonStats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.lessonStats.count)
+    }
+
+    private var recommendations: [LessonStat] {
+        Array(stats.lessonStats.sorted { a, b in
+            if a.reviewCount != b.reviewCount { return a.reviewCount < b.reviewCount }
+            switch (a.lastReviewed, b.lastReviewed) {
+            case (nil, nil):   return lessonNumberLess(a.lesson.number, b.lesson.number)
+            case (nil, _):     return true
+            case (_, nil):     return false
+            case (let x?, let y?): return x < y
+            }
+        }.prefix(4))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("推荐复习").font(.headline)
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(height: 28)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text(stats.level.id)
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(levelColor(stats.level.id), in: RoundedRectangle(cornerRadius: 4))
+                        Text(String(format: "均 %.1f 次", avg))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    ForEach(recommendations) { stat in
+                        HStack(spacing: 0) {
+                            Text(stat.lesson.displayName)
+                                .font(.callout).lineLimit(1)
+                            Spacer()
+                            Text("\(stat.reviewCount)")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(stat.reviewCount == 0
+                                    ? Color.orange.opacity(0.85) : Color.secondary)
+                                .padding(.horizontal, 5).padding(.vertical, 2)
+                                .background(
+                                    (stat.reviewCount == 0 ? Color.orange : Color.secondary).opacity(0.10),
+                                    in: RoundedRectangle(cornerRadius: 4)
+                                )
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+        .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
