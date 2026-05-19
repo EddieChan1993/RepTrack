@@ -25,6 +25,12 @@ printf "  ${B}  BananaTrack Builder 🍌${N}\n"
 printf "  ${B}${HR}${N}\n"
 echo ""
 
+# ── Generate icons ────────────────────────────────
+step "Generating icons..."
+swift "$SCRIPT_DIR/scripts/generate_icon.swift" \
+  "$SCRIPT_DIR/RepTrack/Assets.xcassets/AppIcon.appiconset" > /dev/null 2>&1
+ok "Icons generated"
+
 # ── Kill old instance ──────────────────────────────
 OLD_PID=$(pgrep -x "BananaTrack" 2>/dev/null)
 if [ -n "$OLD_PID" ]; then
