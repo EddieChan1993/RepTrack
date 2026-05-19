@@ -67,26 +67,24 @@ struct AddSessionView: View {
                         ForEach(store.levels) { lv in Text(lv.id).tag(lv.id) }
                     }
 
-                    HStack(spacing: 8) {
-                        TextField("请选择你当日复习的课程", text: $lessonInput)
-                            .labelsHidden()
-                            .onSubmit { addEntry() }
-                        AddButton(enabled: canAddEntry) { addEntry() }
-                    }
-
                     if !error.isEmpty {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
 
                     if let level = currentLevel, !level.lessons.isEmpty {
-                        FlowLayout(spacing: 6) {
-                            ForEach(level.lessons.sorted { lessonNumberLess($0.number, $1.number) }) { lesson in
-                                LessonChip(
-                                    lesson: lesson,
-                                    levelId: level.id,
-                                    isSelected: isChipSelected(lesson)
-                                ) { appendChip(paddedDisplay(lesson.number)) }
+                        VStack(alignment: .trailing, spacing: 10) {
+                            FlowLayout(spacing: 6) {
+                                ForEach(level.lessons.sorted { lessonNumberLess($0.number, $1.number) }) { lesson in
+                                    LessonChip(
+                                        lesson: lesson,
+                                        levelId: level.id,
+                                        isSelected: isChipSelected(lesson)
+                                    ) { appendChip(paddedDisplay(lesson.number)) }
+                                }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            AddButton(enabled: canAddEntry) { addEntry() }
                         }
                         .padding(.vertical, 4)
                     }
