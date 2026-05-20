@@ -7,7 +7,6 @@ struct DataSettingsView: View {
 
     let isOnboarding: Bool
 
-    @State private var exportError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,21 +80,6 @@ struct DataSettingsView: View {
                         }
                     }
 
-                    // ── Export ────────────────────────────────────
-                    SectionCard(title: "导出备份") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("将当前数据导出为 JSON 文件，可用于备份或在其他设备上导入。")
-                                .font(.caption).foregroundStyle(.secondary)
-
-                            if let err = exportError {
-                                Text(err).font(.caption).foregroundStyle(.red)
-                            }
-
-                            Button("导出当前数据…") { exportData() }
-                                .buttonStyle(.bordered)
-                                .controlSize(.regular)
-                        }
-                    }
                 }
                 .padding(24)
             }
@@ -135,21 +119,6 @@ struct DataSettingsView: View {
         }
     }
 
-    private func exportData() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "RepTrackData.json"
-        panel.message = "选择导出位置"
-        panel.prompt = "导出"
-        if panel.runModal() == .OK, let url = panel.url {
-            do {
-                try store.exportToFile(url)
-                exportError = nil
-            } catch {
-                exportError = "导出失败：\(error.localizedDescription)"
-            }
-        }
-    }
 }
 
 // MARK: - Section card
