@@ -12,7 +12,7 @@ struct ContentView: View {
             StatsView()
                 .frame(minHeight: 360)
             LogView()
-                .frame(minHeight: 180)
+                .frame(minHeight: 320)
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -43,7 +43,7 @@ struct ContentView: View {
         .onAppear {
             if store.isFirstLaunch { showOnboarding = true }
         }
-        .frame(minWidth: 720, minHeight: 600)
+        .frame(minWidth: 720, minHeight: 740)
     }
 
     private func openImportPanel() {
