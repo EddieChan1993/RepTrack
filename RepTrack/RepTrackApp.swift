@@ -9,7 +9,7 @@ struct RepTrackApp: App {
             ContentView()
                 .environment(store)
         }
-        .defaultSize(width: 960, height: 660)
+        .defaultSize(width: 720, height: 520)
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
