@@ -10,7 +10,7 @@ struct ContentView: View {
     var body: some View {
         VSplitView {
             StatsView()
-                .frame(minHeight: 260)
+                .frame(minHeight: 360)
             LogView()
                 .frame(minHeight: 180)
         }
@@ -43,7 +43,7 @@ struct ContentView: View {
         .onAppear {
             if store.isFirstLaunch { showOnboarding = true }
         }
-        .frame(minWidth: 720, minHeight: 520)
+        .frame(minWidth: 720, minHeight: 600)
     }
 
     private func openImportPanel() {
