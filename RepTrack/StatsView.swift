@@ -11,12 +11,14 @@ struct StatsView: View {
     @State private var isRefreshing = false
     @State private var refreshHovered = false
     @State private var refreshRotation: Double = 0
+    @State private var showFolderMissingAlert = false
+    @State private var missingPaths: [String] = []
 
     private var tabs: [String] { ["全部"] + store.levels.map(\.id) }
 
     private var canRefresh: Bool {
-        if selectedTab == "全部" { return store.levels.contains { $0.sourceURL != nil } }
-        return store.levels.first(where: { $0.id == selectedTab })?.sourceURL != nil
+        if selectedTab == "全部" { return store.levels.contains { store.sourceURL(for: $0.id) != nil } }
+        return store.sourceURL(for: selectedTab) != nil
     }
 
     var body: some View {
@@ -56,10 +58,25 @@ struct StatsView: View {
                     Divider().frame(height: 20)
                     Button {
                         guard !isRefreshing else { return }
-                        isRefreshing = true
-                        withAnimation(.linear(duration: 0.6)) {
-                            refreshRotation += 360
+
+                        // Validate paths before refreshing
+                        let levelsToCheck = selectedTab == "全部"
+                            ? store.levels.map(\.id)
+                            : [selectedTab]
+                        let missing = levelsToCheck.compactMap { id -> String? in
+                            guard let url = store.sourceURL(for: id) else { return nil }
+                            var isDir: ObjCBool = false
+                            let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                            return (exists && isDir.boolValue) ? nil : url.path
                         }
+                        if !missing.isEmpty {
+                            missingPaths = missing
+                            showFolderMissingAlert = true
+                            return
+                        }
+
+                        isRefreshing = true
+                        withAnimation(.linear(duration: 0.6)) { refreshRotation += 360 }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
                             if selectedTab == "全部" {
                                 store.refreshAllLevels()
@@ -80,6 +97,12 @@ struct StatsView: View {
                     .buttonStyle(.plain)
                     .onHover { refreshHovered = $0 }
                     .help(selectedTab == "全部" ? "重新扫描所有等级文件夹" : "重新扫描 \(selectedTab) 文件夹")
+                    .alert("找不到文件夹", isPresented: $showFolderMissingAlert) {
+                        Button("好") { }
+                    } message: {
+                        let paths = missingPaths.map { "• " + $0.replacingOccurrences(of: NSHomeDirectory(), with: "~") }.joined(separator: "\n")
+                        Text("以下文件夹在本机上不存在，请重新导入对应等级的文件夹：\n\n\(paths)")
+                    }
                 }
             }
             .frame(height: 44)

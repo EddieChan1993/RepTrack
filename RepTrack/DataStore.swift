@@ -8,8 +8,26 @@ final class DataStore {
 
     // MARK: - Storage location
 
-    private static let dataPathKey = "RepTrack.dataFilePath"
-    private static let hasSetupKey = "RepTrack.hasCompletedSetup"
+    private static let dataPathKey    = "RepTrack.dataFilePath"
+    private static let hasSetupKey    = "RepTrack.hasCompletedSetup"
+    private static let folderMapKey   = "RepTrack.levelFolderPaths"
+
+    // Local-only folder map: levelId → absolute path (never written to the shared data file)
+    private var folderMap: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: DataStore.folderMapKey) as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.folderMapKey) }
+    }
+
+    func sourceURL(for levelId: String) -> URL? {
+        guard let path = folderMap[levelId] else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
+    private func setSourceURL(_ url: URL, for levelId: String) {
+        var map = folderMap
+        map[levelId] = url.path
+        folderMap = map
+    }
 
     static var defaultDataURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -213,8 +231,16 @@ final class DataStore {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: dataURL),
-              let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
+        guard let data = try? Data(contentsOf: dataURL) else { return }
+
+        // Migrate sourceURL out of JSON into UserDefaults (runs once on old data)
+        if folderMap.isEmpty, let legacy = try? JSONDecoder().decode(LegacySaved.self, from: data) {
+            var map: [String: String] = [:]
+            for lv in legacy.levels { if let url = lv.sourceURL { map[lv.id] = url.path } }
+            if !map.isEmpty { folderMap = map }
+        }
+
+        guard let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
         levels = saved.levels.map { lv in
             var copy = lv
             copy.lessons = deduplicatedByNumber(copy.lessons)
@@ -226,6 +252,18 @@ final class DataStore {
 
     func save() {
         try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)).write(to: dataURL, options: .atomic)
+    }
+
+    // Legacy decode support: Level used to carry sourceURL in the JSON.
+    // We read it once to migrate into UserDefaults, then ignore it going forward.
+    private struct LegacyLevel: Codable {
+        let id: String
+        var lessons: [Lesson]
+        var sourceURL: URL?
+    }
+    private struct LegacySaved: Codable {
+        var levels: [LegacyLevel]
+        var sessions: [ReviewSession]
     }
 
     private struct Saved: Codable {
@@ -241,13 +279,13 @@ final class DataStore {
     }
 
     func refreshLevel(_ levelId: String) {
-        guard let url = levels.first(where: { $0.id == levelId })?.sourceURL else { return }
+        guard let url = sourceURL(for: levelId) else { return }
         importSingleLevel(url)
         save()
     }
 
     func refreshAllLevels() {
-        let urls = levels.compactMap(\.sourceURL)
+        let urls = levels.compactMap { sourceURL(for: $0.id) }
         guard !urls.isEmpty else { return }
         for url in urls { importSingleLevel(url) }
         save()
@@ -255,6 +293,8 @@ final class DataStore {
 
     private func importSingleLevel(_ url: URL) {
         let levelId = url.lastPathComponent
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
         let files = (try? FileManager.default.contentsOfDirectory(
             at: url, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
         )) ?? []
@@ -302,10 +342,10 @@ final class DataStore {
             }
             levels[idx].lessons = deduplicatedByNumber(levels[idx].lessons)
             levels[idx].lessons.sort { lessonNumberLess($0.number, $1.number) }
-            levels[idx].sourceURL = url
+            setSourceURL(url, for: levelId)
         } else {
-            var level = Level(id: levelId, lessons: deduplicatedByNumber(newLessons))
-            level.sourceURL = url
+            let level = Level(id: levelId, lessons: deduplicatedByNumber(newLessons))
+            setSourceURL(url, for: levelId)
             levels.append(level)
         }
     }

@@ -3,7 +3,6 @@ import Foundation
 struct Level: Identifiable, Codable, Hashable {
     let id: String
     var lessons: [Lesson]
-    var sourceURL: URL?
 }
 
 struct Lesson: Identifiable, Codable, Hashable {
