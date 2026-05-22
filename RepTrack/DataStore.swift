@@ -6,6 +6,12 @@ final class DataStore {
     var levels: [Level] = []
     var sessions: [ReviewSession] = []
 
+    // MARK: - File watcher
+    private var fileSource: DispatchSourceFileSystemObject?
+    private var watchedFD: Int32 = -1
+    private var reloadWorkItem: DispatchWorkItem?
+    private var isSaving = false          // suppress reload triggered by our own save()
+
     // MARK: - Storage location
 
     private static let dataPathKey    = "RepTrack.dataFilePath"
@@ -61,6 +67,7 @@ final class DataStore {
         }
         UserDefaults.standard.set(newURL.path, forKey: DataStore.dataPathKey)
         save()
+        startWatching()   // re-watch the new file path
     }
 
     // Replace all in-memory data from an external file, then save to current location.
@@ -88,6 +95,46 @@ final class DataStore {
     init() {
         load()
         if levels.isEmpty { levels = Self.defaultLevels() }
+        startWatching()
+    }
+
+    deinit { stopWatching() }
+
+    // Start (or restart) watching the current dataURL for external changes.
+    func startWatching() {
+        stopWatching()
+        let url = dataURL
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        watchedFD = fd
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .rename, .delete],
+            queue: DispatchQueue.global(qos: .utility)
+        )
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            // Debounce: cloud-sync apps can write in several bursts
+            self.reloadWorkItem?.cancel()
+            let item = DispatchWorkItem { [weak self] in
+                guard let self, !self.isSaving else { return }
+                DispatchQueue.main.async {
+                    self.load()
+                }
+            }
+            self.reloadWorkItem = item
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0, execute: item)
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        fileSource = source
+    }
+
+    private func stopWatching() {
+        reloadWorkItem?.cancel()
+        fileSource?.cancel()
+        fileSource = nil
+        if watchedFD >= 0 { watchedFD = -1 }
     }
 
     // MARK: - Sessions
@@ -251,7 +298,12 @@ final class DataStore {
     }
 
     func save() {
+        isSaving = true
         try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)).write(to: dataURL, options: .atomic)
+        // Clear the flag after a short delay so the watcher's debounce window has passed
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.isSaving = false
+        }
     }
 
     // Legacy decode support: Level used to carry sourceURL in the JSON.
