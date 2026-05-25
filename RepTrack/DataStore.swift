@@ -6,12 +6,10 @@ final class DataStore {
     var levels: [Level] = []
     var sessions: [ReviewSession] = []
 
-    // MARK: - File watcher
-    private var fileSource: DispatchSourceFileSystemObject?
-    private var watchedFD: Int32 = -1
-    private var reloadWorkItem: DispatchWorkItem?
-    // mtime of the file at the moment we last wrote it; used to detect external changes
-    private var lastSaveDate: Date = .distantPast
+    // MARK: - Sync check
+    // mtime of the file the last time we read or wrote it
+    private var lastKnownMtime: Date = .distantPast
+    private var syncTimer: Timer?
 
     // MARK: - Storage location
 
@@ -68,7 +66,6 @@ final class DataStore {
         }
         UserDefaults.standard.set(newURL.path, forKey: DataStore.dataPathKey)
         save()
-        startWatching()   // re-watch the new file path
     }
 
     // Replace all in-memory data from an external file, then save to current location.
@@ -96,72 +93,25 @@ final class DataStore {
     init() {
         load()
         if levels.isEmpty { levels = Self.defaultLevels() }
-        startWatching()
+        startSyncTimer()
     }
 
-    deinit { stopWatching() }
+    deinit { syncTimer?.invalidate() }
 
-    // Start (or restart) watching the current dataURL for external changes.
-    func startWatching() {
-        stopWatching()
-        let url = dataURL
-        let fd = open(url.path, O_EVTONLY)
-        guard fd >= 0 else {
-            // File not found yet — retry after 2 s (e.g. first launch)
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) { [weak self] in
-                self?.startWatching()
-            }
-            return
+    // Poll every 30 s — lightweight mtime check, no kernel event machinery needed.
+    private func startSyncTimer() {
+        syncTimer?.invalidate()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.reloadIfNeeded()
         }
-        watchedFD = fd
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd,
-            eventMask: [.write, .rename, .delete],
-            queue: DispatchQueue.global(qos: .utility)
-        )
-        source.setEventHandler { [weak self] in
-            guard let self else { return }
-            let flags = source.data
-            // Cloud-sync tools do atomic rename: old fd becomes stale after the replace.
-            // Re-establish the watcher on the new inode at the same path.
-            if flags.contains(.rename) || flags.contains(.delete) {
-                DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.startWatching()   // picks up new inode
-                }
-            }
-            self.scheduleReload()
-        }
-        source.setCancelHandler { close(fd) }
-        source.resume()
-        fileSource = source
     }
 
-    private func stopWatching() {
-        reloadWorkItem?.cancel()
-        fileSource?.cancel()
-        fileSource = nil
-        if watchedFD >= 0 { watchedFD = -1 }
-    }
-
-    // Debounced reload — only fires if the file on disk is newer than our last save.
-    private func scheduleReload() {
-        reloadWorkItem?.cancel()
-        let item = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.reloadIfNeeded()
-        }
-        reloadWorkItem = item
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0, execute: item)
-    }
-
-    // Public — call this when the app comes to the foreground (belt-and-suspenders).
+    // Compare file mtime with what we last read/wrote. Reload only on external change.
     func reloadIfNeeded() {
-        let url = dataURL
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let mtime = attrs[.modificationDate] as? Date else { return }
-        // Reload only if the file was modified after our last save (external write)
-        guard mtime > lastSaveDate.addingTimeInterval(0.5) else { return }
-        DispatchQueue.main.async { self.load() }
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: dataURL.path),
+              let mtime = attrs[.modificationDate] as? Date,
+              mtime > lastKnownMtime.addingTimeInterval(1) else { return }
+        load()
     }
 
     // MARK: - Sessions
@@ -305,7 +255,14 @@ final class DataStore {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: dataURL) else { return }
+        let url = dataURL
+        guard let data = try? Data(contentsOf: url) else { return }
+
+        // Record mtime so we can detect future external changes
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let mtime = attrs[.modificationDate] as? Date {
+            lastKnownMtime = mtime
+        }
 
         // Migrate sourceURL out of JSON into UserDefaults (runs once on old data)
         if folderMap.isEmpty, let legacy = try? JSONDecoder().decode(LegacySaved.self, from: data) {
@@ -326,12 +283,12 @@ final class DataStore {
 
     func save() {
         try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)).write(to: dataURL, options: .atomic)
-        // Record when we saved so reloadIfNeeded() can distinguish our own writes from external ones
+        // Update mtime record so the next timer tick doesn't re-read our own write
         if let attrs = try? FileManager.default.attributesOfItem(atPath: dataURL.path),
            let mtime = attrs[.modificationDate] as? Date {
-            lastSaveDate = mtime
+            lastKnownMtime = mtime
         } else {
-            lastSaveDate = Date()
+            lastKnownMtime = Date()
         }
     }
 
