@@ -2,6 +2,43 @@ import SwiftUI
 import Charts
 import UniformTypeIdentifiers
 
+// MARK: - Recommendation scoring
+
+/// Multi-dimensional weighted score — higher = more urgently needs review.
+/// countWeight (0.7): how far below the level average this lesson is.
+/// recencyWeight (0.3): how long ago it was last reviewed (or never = max days).
+private func recommendScore(_ stat: LessonStat, avg: Double, maxDays: Double) -> Double {
+    let now = Date()
+
+    // Count score: (avg - count) normalised; negative means already above average
+    let countScore = (avg - Double(stat.reviewCount)) / (avg + 1)
+
+    // Recency score: days since last review, capped and normalised to [0, 1]
+    let days: Double
+    if let last = stat.lastReviewed {
+        days = min(max(now.timeIntervalSince(last) / 86400, 0), maxDays)
+    } else {
+        days = maxDays   // never reviewed → treat as oldest possible
+    }
+    let recencyScore = maxDays > 0 ? days / maxDays : 1.0
+
+    return 0.7 * countScore + 0.3 * recencyScore
+}
+
+/// Sort a list of LessonStats by recommendation score and return the top N.
+private func topRecommendations(_ stats: [LessonStat], count: Int = 4) -> [LessonStat] {
+    guard !stats.isEmpty else { return [] }
+    let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
+    let maxDays = stats.compactMap { $0.lastReviewed }
+        .map { Date().timeIntervalSince($0) / 86400 }
+        .max() ?? 30
+    return Array(
+        stats.sorted { recommendScore($0, avg: avg, maxDays: maxDays) >
+                       recommendScore($1, avg: avg, maxDays: maxDays) }
+            .prefix(count)
+    )
+}
+
 // MARK: - Main View
 
 struct StatsView: View {
@@ -361,17 +398,7 @@ struct RecommendedLessonsCard: View {
                 )
             }
             let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
-            // Sort: fewest reviews first; tiebreak by oldest last-review (never reviewed = highest priority)
-            let sorted = stats.sorted { a, b in
-                if a.reviewCount != b.reviewCount { return a.reviewCount < b.reviewCount }
-                switch (a.lastReviewed, b.lastReviewed) {
-                case (nil, nil):   return lessonNumberLess(a.lesson.number, b.lesson.number)
-                case (nil, _):     return true
-                case (_, nil):     return false
-                case (let x?, let y?): return x < y
-                }
-            }
-            return LevelRec(level: level, avg: avg, lessons: Array(sorted.prefix(4)))
+            return LevelRec(level: level, avg: avg, lessons: topRecommendations(stats))
         }
     }
 
@@ -492,15 +519,7 @@ struct LevelRecommendedCard: View {
     }
 
     private var recommendations: [LessonStat] {
-        Array(stats.lessonStats.sorted { a, b in
-            if a.reviewCount != b.reviewCount { return a.reviewCount < b.reviewCount }
-            switch (a.lastReviewed, b.lastReviewed) {
-            case (nil, nil):   return lessonNumberLess(a.lesson.number, b.lesson.number)
-            case (nil, _):     return true
-            case (_, nil):     return false
-            case (let x?, let y?): return x < y
-            }
-        }.prefix(4))
+        topRecommendations(stats.lessonStats)
     }
 
     var body: some View {
