@@ -211,7 +211,9 @@ final class DataStore {
     // MARK: - Stats
 
     private func sessions(in period: StatPeriod) -> [ReviewSession] {
-        let cal = Calendar.current
+        // Use a Monday-based calendar so "this week" = Mon–Sun regardless of device locale
+        var cal = Calendar.current
+        cal.firstWeekday = 2   // 1 = Sunday, 2 = Monday
         let now = Date()
         return sessions.filter { s in
             switch period {
