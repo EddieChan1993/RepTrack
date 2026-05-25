@@ -10,7 +10,8 @@ final class DataStore {
     private var fileSource: DispatchSourceFileSystemObject?
     private var watchedFD: Int32 = -1
     private var reloadWorkItem: DispatchWorkItem?
-    private var isSaving = false          // suppress reload triggered by our own save()
+    // mtime of the file at the moment we last wrote it; used to detect external changes
+    private var lastSaveDate: Date = .distantPast
 
     // MARK: - Storage location
 
@@ -105,7 +106,13 @@ final class DataStore {
         stopWatching()
         let url = dataURL
         let fd = open(url.path, O_EVTONLY)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else {
+            // File not found yet — retry after 2 s (e.g. first launch)
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.startWatching()
+            }
+            return
+        }
         watchedFD = fd
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
@@ -114,16 +121,15 @@ final class DataStore {
         )
         source.setEventHandler { [weak self] in
             guard let self else { return }
-            // Debounce: cloud-sync apps can write in several bursts
-            self.reloadWorkItem?.cancel()
-            let item = DispatchWorkItem { [weak self] in
-                guard let self, !self.isSaving else { return }
-                DispatchQueue.main.async {
-                    self.load()
+            let flags = source.data
+            // Cloud-sync tools do atomic rename: old fd becomes stale after the replace.
+            // Re-establish the watcher on the new inode at the same path.
+            if flags.contains(.rename) || flags.contains(.delete) {
+                DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.startWatching()   // picks up new inode
                 }
             }
-            self.reloadWorkItem = item
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0, execute: item)
+            self.scheduleReload()
         }
         source.setCancelHandler { close(fd) }
         source.resume()
@@ -135,6 +141,27 @@ final class DataStore {
         fileSource?.cancel()
         fileSource = nil
         if watchedFD >= 0 { watchedFD = -1 }
+    }
+
+    // Debounced reload — only fires if the file on disk is newer than our last save.
+    private func scheduleReload() {
+        reloadWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.reloadIfNeeded()
+        }
+        reloadWorkItem = item
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0, execute: item)
+    }
+
+    // Public — call this when the app comes to the foreground (belt-and-suspenders).
+    func reloadIfNeeded() {
+        let url = dataURL
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let mtime = attrs[.modificationDate] as? Date else { return }
+        // Reload only if the file was modified after our last save (external write)
+        guard mtime > lastSaveDate.addingTimeInterval(0.5) else { return }
+        DispatchQueue.main.async { self.load() }
     }
 
     // MARK: - Sessions
@@ -298,11 +325,13 @@ final class DataStore {
     }
 
     func save() {
-        isSaving = true
         try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)).write(to: dataURL, options: .atomic)
-        // Clear the flag after a short delay so the watcher's debounce window has passed
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            self?.isSaving = false
+        // Record when we saved so reloadIfNeeded() can distinguish our own writes from external ones
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: dataURL.path),
+           let mtime = attrs[.modificationDate] as? Date {
+            lastSaveDate = mtime
+        } else {
+            lastSaveDate = Date()
         }
     }
 
