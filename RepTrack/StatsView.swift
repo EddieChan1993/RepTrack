@@ -26,15 +26,18 @@ private func recommendScore(_ stat: LessonStat, avg: Double, maxDays: Double) ->
 }
 
 /// Sort a list of LessonStats by recommendation score and return the top N.
+/// Only lessons reviewed at least once are considered — never-reviewed lessons are excluded
+/// (they're obviously pending and the user doesn't need reminding).
 private func topRecommendations(_ stats: [LessonStat], count: Int = 4) -> [LessonStat] {
-    guard !stats.isEmpty else { return [] }
-    let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
-    let maxDays = stats.compactMap { $0.lastReviewed }
+    let reviewed = stats.filter { $0.reviewCount > 0 }
+    guard !reviewed.isEmpty else { return [] }
+    let avg = Double(reviewed.reduce(0) { $0 + $1.reviewCount }) / Double(reviewed.count)
+    let maxDays = reviewed.compactMap { $0.lastReviewed }
         .map { Date().timeIntervalSince($0) / 86400 }
         .max() ?? 30
     return Array(
-        stats.sorted { recommendScore($0, avg: avg, maxDays: maxDays) >
-                       recommendScore($1, avg: avg, maxDays: maxDays) }
+        reviewed.sorted { recommendScore($0, avg: avg, maxDays: maxDays) >
+                          recommendScore($1, avg: avg, maxDays: maxDays) }
             .prefix(count)
     )
 }
