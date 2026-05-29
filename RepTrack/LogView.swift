@@ -125,6 +125,7 @@ struct SessionRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @State private var editHovered = false
     @State private var trashHovered = false
     @State private var showDeleteConfirm = false
 
@@ -146,6 +147,20 @@ struct SessionRow: View {
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(.secondary.opacity(0.1), in: Capsule())
                     Spacer()
+                    Button { onEdit() } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(editHovered ? .white : Color.accentColor.opacity(0.7))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                editHovered ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.accentColor.opacity(0.08)),
+                                in: RoundedRectangle(cornerRadius: 7)
+                            )
+                            .scaleEffect(editHovered ? 1.08 : 1.0)
+                            .animation(.easeInOut(duration: 0.12), value: editHovered)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { editHovered = $0 }
                     Button { showDeleteConfirm = true } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 13, weight: .medium))

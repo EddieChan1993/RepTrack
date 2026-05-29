@@ -27,6 +27,8 @@ struct AddSessionView: View {
     // ── Edit mode ─────────────────────────────────────────────
     @State private var editDate = Date()
     @State private var editItems: [ReviewItem] = []
+    @State private var cancelHovered = false
+    @State private var saveHovered = false
 
     init(existing: ReviewSession? = nil) {
         self.existing = existing
@@ -44,7 +46,17 @@ struct AddSessionView: View {
                 Text(isEditMode ? "编辑复习记录" : "添加复习记录")
                     .font(.title2).fontWeight(.semibold)
                 Spacer()
-                Button("取消") { dismiss() }.buttonStyle(.plain).foregroundStyle(.secondary)
+                Button("取消") { dismiss() }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(cancelHovered ? .primary : .secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(cancelHovered ? AnyShapeStyle(Color.secondary.opacity(0.12)) : AnyShapeStyle(Color.clear),
+                                in: RoundedRectangle(cornerRadius: 7))
+                    .scaleEffect(cancelHovered ? 1.04 : 1.0)
+                    .animation(.easeInOut(duration: 0.12), value: cancelHovered)
+                    .contentShape(RoundedRectangle(cornerRadius: 7))
+                    .onHover { cancelHovered = $0 }
+                    .focusable(false)
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 12)
 
@@ -123,10 +135,22 @@ struct AddSessionView: View {
                 if !isEditMode {
                     Text(entrySummary).font(.caption).foregroundStyle(.secondary)
                 }
+                let saveDisabled = isEditMode ? editItems.isEmpty : entries.isEmpty
                 Button(isEditMode ? "保存修改" : "保存记录") { save() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(isEditMode ? editItems.isEmpty : entries.isEmpty)
+                    .buttonStyle(.plain)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(saveDisabled ? Color.secondary : .white)
+                    .padding(.horizontal, 20).padding(.vertical, 8)
+                    .background(
+                        saveDisabled
+                            ? AnyShapeStyle(Color.secondary.opacity(0.15))
+                            : AnyShapeStyle(Color.accentColor.opacity(saveHovered ? 0.75 : 1.0)),
+                        in: RoundedRectangle(cornerRadius: 9)
+                    )
+                    .scaleEffect((!saveDisabled && saveHovered) ? 1.04 : 1.0)
+                    .animation(.easeInOut(duration: 0.12), value: saveHovered)
+                    .onHover { if !saveDisabled { saveHovered = $0 } }
+                    .disabled(saveDisabled)
             }
             .padding(.horizontal, 20).padding(.vertical, 14)
         }
@@ -352,6 +376,28 @@ private struct AddButton: View {
 
 // MARK: - Row views
 
+private struct RemoveButton: View {
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button { action() } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 16))
+                .foregroundStyle(hovered ? .white : Color.secondary.opacity(0.6))
+                .frame(width: 26, height: 26)
+                .background(
+                    hovered ? AnyShapeStyle(Color.secondary.opacity(0.5)) : AnyShapeStyle(Color.clear),
+                    in: Circle()
+                )
+                .scaleEffect(hovered ? 1.1 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: hovered)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+    }
+}
+
 private struct PendingEntryRow: View {
     let entry: PendingEntry
     let store: DataStore
@@ -395,10 +441,7 @@ private struct PendingEntryRow: View {
             }
 
             Spacer()
-            Button { onRemove() } label: {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            RemoveButton { onRemove() }
         }
     }
 }
@@ -432,10 +475,7 @@ private struct EditItemRow: View {
             }
 
             Spacer()
-            Button { onRemove() } label: {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            RemoveButton { onRemove() }
         }
     }
 }

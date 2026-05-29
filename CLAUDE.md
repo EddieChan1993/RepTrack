@@ -110,3 +110,13 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 ### 7. X 轴标签过多时拥挤重叠
 **问题**：课程数超过 30 时，x 轴标签密集重叠难以阅读。  
 **解决**：动态计算显示步长 `xAxisStride = ceil(n / 30)`，在 `AxisMarks` 闭包中只对 `xAxisValues`（按步长筛选后的 key 集合）中的值渲染 `AxisValueLabel`，网格线仍对所有柱显示。规则：≤30 课全显示，每多 30 课步长加一。
+
+---
+
+## 变更记录
+
+### 2026-05-29
+- 🆕 新增：LogView 每条记录加编辑按钮（`square.and.pencil` 图标），点击直接打开编辑弹窗
+- ♻️ 优化：编辑界面「取消」按钮去掉焦点蓝框，加 hover 交互，整个背景区域可点击（`.contentShape`）
+- ♻️ 优化：编辑界面「保存修改/保存记录」按钮改为自定义样式，加 hover 放大 + 颜色变化
+- ♻️ 优化：EditItemRow / PendingEntryRow 删除按钮统一抽为 `RemoveButton` 组件，hover 时背景变深灰
