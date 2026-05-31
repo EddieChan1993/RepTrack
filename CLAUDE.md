@@ -115,6 +115,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-05-31
+- ♻️ 优化：工具栏「导入课程目录」图标改为 `books.vertical`，「添加复习」改为 `plus.circle.fill`，两者视觉差异明显
+
 ### 2026-05-29
 - 🆕 新增：LogView 每条记录加编辑按钮（`square.and.pencil` 图标），点击直接打开编辑弹窗
 - ♻️ 优化：编辑界面「取消」按钮去掉焦点蓝框，加 hover 交互，整个背景区域可点击（`.contentShape`）

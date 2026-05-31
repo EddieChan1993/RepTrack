@@ -17,12 +17,12 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { openImportPanel() } label: {
-                    Label("导入课程目录", systemImage: "folder.badge.plus")
+                    Label("导入课程目录", systemImage: "books.vertical")
                 }
                 .help("选择课程文件夹，自动读取等级和课程列表")
 
                 Button { showAdd = true } label: {
-                    Label("添加复习", systemImage: "plus")
+                    Label("添加复习", systemImage: "plus.circle.fill")
                 }
                 .keyboardShortcut("n", modifiers: .command)
                 .help("记录今天的复习 (⌘N)")
