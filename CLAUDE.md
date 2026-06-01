@@ -115,6 +115,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-01
+- 🐛 修复：LogView 新增 `listRefreshID`，监听 `NSApplication.didBecomeActiveNotification`，app 从挂起恢复后强制 `List` 重绘，解决表格不自动显示、只有鼠标 hover 才出来的问题
+
 ### 2026-05-31
 - ♻️ 优化：工具栏「导入课程目录」图标改为 `books.vertical`，「添加复习」改为 `plus.circle.fill`，两者视觉差异明显
 

@@ -4,6 +4,7 @@ struct LogView: View {
     @Environment(DataStore.self) private var store
     @State private var editingSession: ReviewSession?
     @State private var pendingClearGroup: (key: String, ids: [UUID])?
+    @State private var listRefreshID = 0
 
     private var grouped: [(key: String, sessions: [ReviewSession])] {
         let fmt = DateFormatter()
@@ -61,7 +62,11 @@ struct LogView: View {
                         }
                     }
                 }
+                .id(listRefreshID)
                 .listStyle(.inset)
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    listRefreshID += 1
+                }
             }
         }
         .sheet(item: $editingSession) { session in

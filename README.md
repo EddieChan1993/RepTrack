@@ -9,7 +9,7 @@ A native macOS app for tracking spaced-repetition language course reviews.
 - **Multi-level course management** — import lesson folders (e.g. S1-EK, S2-IC, S3-IK) or add lessons manually; drag tabs to reorder levels
 - **Batch session logging** — record multiple lessons across multiple levels and multiple dates in a single save
 - **Interactive stats** — coverage and review-count charts powered by Swift Charts; hover for tooltips; tap stat cards to cycle Today / This Week / This Month
-- **Review log** — chronological list grouped by month; inline edit or delete with confirmation
+- **Review log** — chronological list grouped by month; inline edit or delete with confirmation; auto-refreshes when the app returns from background
 - **Cloud-sync friendly** — point the data file at any folder (Nutstore, iCloud Drive, Dropbox) on first launch or via the toolbar; export/import JSON backups at any time
 
 ## Requirements
