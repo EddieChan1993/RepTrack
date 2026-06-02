@@ -49,12 +49,20 @@ enum StatPeriod: String, CaseIterable {
 }
 
 func levelColor(_ id: String) -> Color {
-    switch id {
-    case "S1-EK": return .blue
-    case "S2-IC": return .green
-    case "S3-IK": return .orange
-    default:       return .gray
-    }
+    let palette: [Color] = [
+        Color(hue: 0.08, saturation: 0.65, brightness: 0.88), // 橙
+        Color(hue: 0.38, saturation: 0.55, brightness: 0.75), // 绿
+        Color(hue: 0.60, saturation: 0.60, brightness: 0.82), // 蓝
+        Color(hue: 0.75, saturation: 0.50, brightness: 0.80), // 紫
+        Color(hue: 0.52, saturation: 0.55, brightness: 0.78), // 青
+        Color(hue: 0.95, saturation: 0.55, brightness: 0.85), // 粉红
+        Color(hue: 0.02, saturation: 0.60, brightness: 0.82), // 红
+        Color(hue: 0.62, saturation: 0.50, brightness: 0.78), // 蓝紫
+        Color(hue: 0.45, saturation: 0.50, brightness: 0.75), // 青绿
+        Color(hue: 0.88, saturation: 0.45, brightness: 0.82), // 淡紫
+    ]
+    let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
+    return palette[hash % palette.count]
 }
 
 // Display-only padding: "2" → "002", "21" → "021"; never changes stored data

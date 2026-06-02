@@ -115,6 +115,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-02
+- ♻️ 优化：`levelColor` 改为哈希动态分配颜色，10色调色板覆盖所有等级，饱和度 0.50~0.65、亮度 0.75~0.88，中性不刺眼，不再有灰色兜底
+
 ### 2026-06-01
 - 🐛 修复：LogView 新增 `listRefreshID`，监听 `NSApplication.didBecomeActiveNotification`，app 从挂起恢复后强制 `List` 重绘，解决表格不自动显示、只有鼠标 hover 才出来的问题
 
