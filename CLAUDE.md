@@ -116,6 +116,10 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 ## 变更记录
 
 ### 2026-06-02
+- 🐛 修复：StatsView 增加 `maxHeight: 520`，新增等级时上方统计区不再自动撑高遮挡日志列表
+- ♻️ 优化：LogView 最小高度从 320 降至 200，窗口空间分配更合理
+
+
 - ♻️ 优化：`levelColor` 改为哈希动态分配颜色，10色调色板覆盖所有等级，饱和度 0.50~0.65、亮度 0.75~0.88，中性不刺眼，不再有灰色兜底
 
 ### 2026-06-01

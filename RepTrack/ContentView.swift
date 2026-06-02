@@ -10,9 +10,9 @@ struct ContentView: View {
     var body: some View {
         VSplitView {
             StatsView()
-                .frame(minHeight: 360)
+                .frame(minHeight: 360, idealHeight: 420, maxHeight: 520)
             LogView()
-                .frame(minHeight: 320)
+                .frame(minHeight: 200)
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
