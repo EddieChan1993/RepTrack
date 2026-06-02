@@ -10,6 +10,7 @@ final class DataStore {
     // mtime of the file the last time we read or wrote it
     private var lastKnownMtime: Date = .distantPast
     private var syncTimer: Timer?
+    private var saveWorkItem: DispatchWorkItem?
 
     // MARK: - Storage location
 
@@ -156,11 +157,7 @@ final class DataStore {
 
     func deleteLevel(_ id: String) {
         levels.removeAll { $0.id == id }
-        sessions = sessions.compactMap { s in
-            var copy = s
-            copy.items.removeAll { $0.levelId == id }
-            return copy.items.isEmpty ? nil : copy
-        }
+        // 历史复习记录保留，不随等级删除而清除
         save()
     }
 
@@ -246,10 +243,32 @@ final class DataStore {
             .max()
     }
 
+    // 单次 O(sessions) 扫描构建全量统计，避免对每课各扫一遍
+    private func buildReviewIndex() -> (counts: [String: Int], lastDates: [String: Date]) {
+        var counts: [String: Int] = [:]
+        var lastDates: [String: Date] = [:]
+        for session in sessions {
+            for item in session.items {
+                for lessonId in item.lessonIds {
+                    counts[lessonId, default: 0] += 1
+                    if let prev = lastDates[lessonId] {
+                        if session.date > prev { lastDates[lessonId] = session.date }
+                    } else {
+                        lastDates[lessonId] = session.date
+                    }
+                }
+            }
+        }
+        return (counts, lastDates)
+    }
+
     func levelStats(for levelId: String) -> LevelStats? {
         guard let level = levels.first(where: { $0.id == levelId }) else { return nil }
+        let index = buildReviewIndex()
         let stats = level.lessons.map {
-            LessonStat(lesson: $0, reviewCount: reviewCount(for: $0.id), lastReviewed: lastReviewed(lessonId: $0.id))
+            LessonStat(lesson: $0,
+                       reviewCount: index.counts[$0.id] ?? 0,
+                       lastReviewed: index.lastDates[$0.id])
         }
         return LevelStats(level: level, lessonStats: stats)
     }
@@ -284,14 +303,22 @@ final class DataStore {
     }
 
     func save() {
-        try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)).write(to: dataURL, options: .atomic)
-        // Update mtime record so the next timer tick doesn't re-read our own write
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: dataURL.path),
-           let mtime = attrs[.modificationDate] as? Date {
-            lastKnownMtime = mtime
-        } else {
-            lastKnownMtime = Date()
+        // 防抖：300ms 内多次调用只触发最后一次，后台线程写磁盘，不阻塞 UI
+        saveWorkItem?.cancel()
+        let payload = Saved(levels: levels, sessions: sessions)
+        let url = dataURL
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let data = try? JSONEncoder().encode(payload) else { return }
+            try? data.write(to: url, options: .atomic)
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let mtime = attrs[.modificationDate] as? Date {
+                DispatchQueue.main.async { self?.lastKnownMtime = mtime }
+            } else {
+                DispatchQueue.main.async { self?.lastKnownMtime = Date() }
+            }
         }
+        saveWorkItem = workItem
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 
     // Legacy decode support: Level used to carry sourceURL in the JSON.

@@ -9,7 +9,16 @@ struct LogView: View {
     private var grouped: [(key: String, sessions: [ReviewSession])] {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy年MM月"
-        let dict = Dictionary(grouping: store.sessions) { fmt.string(from: $0.date) }
+        let existingLevelIds = Set(store.levels.map(\.id))
+        // 只显示至少有一个 item 对应现有 tab 的 session
+        let visible = store.sessions.compactMap { session -> ReviewSession? in
+            let filtered = session.items.filter { existingLevelIds.contains($0.levelId) }
+            guard !filtered.isEmpty else { return nil }
+            var copy = session
+            copy.items = filtered
+            return copy
+        }
+        let dict = Dictionary(grouping: visible) { fmt.string(from: $0.date) }
         return dict.map { (key: $0.key, sessions: $0.value) }
                    .sorted { $0.key > $1.key }
     }
