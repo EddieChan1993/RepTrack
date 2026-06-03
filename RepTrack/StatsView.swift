@@ -195,8 +195,26 @@ private struct CardHeightKey: PreferenceKey {
 // MARK: - "全部" content
 
 struct LevelCoverage: Identifiable {
-    let id: String; let total: Int; let reviewed: Int
-    var pct: Double { total > 0 ? Double(reviewed) / Double(total) * 100 : 0 }
+    let id: String
+    let total: Int        // 总课数
+    let reviewed: Int     // 至少复习过1次的课数
+    let totalReviews: Int // 累计复习次数
+    let minReviews: Int          // 最少被复习的课的次数
+    let cappedTotalReviews: Int  // Σ min(N, 每课次数)，每课贡献上限N
+    let tierStep: Int            // 升阶所需每课最低次数
+    // 覆盖率得分(0-50)：reviewed / total × 50
+    var coverageScore: Double { total > 0 ? Double(reviewed) / Double(total) * 50 : 0 }
+    // 当前阶梯信息（基于最薄弱课时）
+    var tierFloor: Int { (minReviews / tierStep) * tierStep }
+    var tierCeil: Int { tierFloor + tierStep }
+    var tierNumber: Int { tierFloor / tierStep + 1 }
+    // 频次得分(0-50)：Σmin(N,课次) / total / N * 50，满分=每课都达到N次
+    var freqScore: Double {
+        guard total > 0, tierStep > 0 else { return 0 }
+        return Double(cappedTotalReviews) / Double(total) / Double(tierStep) * 50
+    }
+    // 雷达轴值 = 总分(0-100)
+    var pct: Double { coverageScore + freqScore }
 }
 
 struct AllLevelsContent: View {
@@ -213,8 +231,15 @@ struct AllLevelsContent: View {
     }
     private var levelCoverages: [LevelCoverage] {
         store.levels.map { lv in
-            let rev = lv.lessons.filter { store.reviewCount(for: $0.id) > 0 }.count
-            return LevelCoverage(id: lv.id, total: lv.lessons.count, reviewed: rev)
+            let counts = lv.lessons.map { store.reviewCount(for: $0.id) }
+            let totalRev = counts.reduce(0, +)
+            let rev = counts.filter { $0 > 0 }.count
+            let minRev = counts.min() ?? 0
+            let capped = counts.reduce(0) { $0 + min($1, lv.tierStep) }
+            return LevelCoverage(id: lv.id, total: lv.lessons.count,
+                                 reviewed: rev, totalReviews: totalRev,
+                                 minReviews: minRev, cappedTotalReviews: capped,
+                                 tierStep: lv.tierStep)
         }
     }
 
@@ -253,22 +278,34 @@ struct AllLevelsContent: View {
     }
 }
 
+// MARK: - Radar Chart Card (五边形战士风格)
+
 struct CoverageChartCard: View {
     let coverages: [LevelCoverage]
     var paneHeight: CGFloat = 400
     @State private var hoveredId: String?
-    @State private var animate = false
+    @State private var progress: CGFloat = 0
+    @State private var showingInfo = false
 
-    // 扣掉统计卡(~96) + 卡片头部(38) + 内外间距(~80) 剩余给图表
-    // paneHeight 首帧为 0，用 280 保底避免图表太矮被截断
     private var chartHeight: CGFloat { paneHeight > 0 ? max(150, paneHeight - 214) : 280 }
-
     private var hoveredItem: LevelCoverage? { coverages.first { $0.id == hoveredId } }
+    private var axisCount: Int { max(coverages.count, 3) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("各内容覆盖率").font(.headline)
+                Text("综合实力").font(.headline)
+                Button {
+                    showingInfo.toggle()
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showingInfo, arrowEdge: .bottom) {
+                    RadarInfoPopover(coverages: coverages)
+                }
                 Spacer()
                 if let lv = hoveredItem {
                     CoverageTooltip(lv: lv)
@@ -278,56 +315,274 @@ struct CoverageChartCard: View {
             .frame(height: 28)
             .animation(.easeInOut(duration: 0.12), value: hoveredId)
 
-            coverageChart
+            GeometryReader { geo in radarContent(in: geo.size) }
                 .frame(height: chartHeight)
-                .animation(.spring(response: 0.6, dampingFraction: 0.82), value: animate)
         }
         .padding(16)
         .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
         .onAppear {
-            withAnimation(.spring(response: 0.65, dampingFraction: 0.8).delay(0.05)) { animate = true }
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.78).delay(0.08)) { progress = 1 }
         }
     }
 
-    private var coverageChart: some View {
-        Chart(coverages) { lv in
-            let dimmed = hoveredId != nil && hoveredId != lv.id
-            let opacity: Double = dimmed ? 0.3 : 1.0
-            let xVal: Double = animate ? lv.pct : 0
-            BarMark(x: .value("覆盖率 %", xVal), y: .value("内容", lv.id))
-                .foregroundStyle(levelColor(lv.id).opacity(opacity).gradient)
-                .cornerRadius(6)
-                .annotation(position: .trailing, alignment: .leading, spacing: 6) {
-                    Text(String(format: "%.0f%%", lv.pct))
-                        .font(.caption2)
-                        .foregroundStyle(hoveredId == lv.id ? Color.primary : Color.secondary)
-                }
+    private func radarAngle(i: Int, n: Int) -> Double {
+        let offset: Double = -Double.pi / 2
+        let step: Double = 2 * Double.pi / Double(n)
+        return offset + step * Double(i)
+    }
+
+    @ViewBuilder
+    private func radarContent(in size: CGSize) -> some View {
+        let cx   = size.width  / 2
+        let cy   = size.height / 2
+        let maxR = min(size.width, size.height) * 0.40
+        let n    = axisCount
+        ZStack {
+            radarGrid(n: n)
+            radarAxes(n: n)
+            radarData(n: n)
+            radarLabels(cx: cx, cy: cy, maxR: maxR, n: n)
+            radarPctHints(cx: cx, cy: cy, maxR: maxR, n: n)
         }
-        .chartXScale(domain: 0...100)
-        .chartXAxis {
-            AxisMarks(values: [0, 25, 50, 75, 100]) {
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                AxisValueLabel().font(.caption2)
+        .frame(width: size.width, height: size.height)
+        .contentShape(Rectangle())
+        .onContinuousHover { phase in
+            handleHover(phase, cx: cx, cy: cy, maxR: maxR, n: n)
+        }
+    }
+
+    @ViewBuilder
+    private func radarGrid(n: Int) -> some View {
+        let fracs: [CGFloat] = [0.25, 0.5, 0.75, 1.0]
+        ForEach(fracs, id: \.self) { frac in
+            let isOuter = frac == 1.0
+            RadarGridShape(n: n, fraction: frac)
+                .stroke(
+                    Color.secondary.opacity(isOuter ? 0.28 : 0.10),
+                    style: StrokeStyle(lineWidth: isOuter ? 1 : 0.5,
+                                       dash: isOuter ? [] : [4, 3])
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func radarAxes(n: Int) -> some View {
+        ForEach(0..<n, id: \.self) { i in
+            RadarAxisShape(i: i, n: n)
+                .stroke(Color.secondary.opacity(0.18), lineWidth: 0.5)
+        }
+    }
+
+    @ViewBuilder
+    private func radarData(n: Int) -> some View {
+        if !coverages.isEmpty {
+            let slice = Array(coverages.prefix(n))
+            RadarDataShape(coverages: slice, n: n, progress: progress)
+                .fill(LinearGradient(
+                    colors: [Color.accentColor.opacity(0.38), Color.accentColor.opacity(0.1)],
+                    startPoint: .center, endPoint: .bottom
+                ))
+            RadarDataShape(coverages: slice, n: n, progress: progress)
+                .stroke(Color.accentColor.opacity(0.85), lineWidth: 2)
+        }
+    }
+
+    @ViewBuilder
+    private func radarLabels(cx: CGFloat, cy: CGFloat, maxR: CGFloat, n: Int) -> some View {
+        ForEach(Array(coverages.prefix(n).enumerated()), id: \.offset) { i, cov in
+            let a     = radarAngle(i: i, n: n)
+            let pct   = CGFloat(cov.pct) / 100.0 * progress
+            let color = levelColor(cov.id)
+            Circle()
+                .fill(color)
+                .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.5))
+                .frame(width: 9, height: 9)
+                .position(x: cx + maxR * pct * cos(a),
+                          y: cy + maxR * pct * sin(a))
+            VStack(spacing: 2) {
+                Text(cov.id)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(color)
+                Text(String(format: "%.0f%%", cov.pct))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .position(x: cx + (maxR + 36) * cos(a),
+                      y: cy + (maxR + 22) * sin(a))
+        }
+    }
+
+    @ViewBuilder
+    private func radarPctHints(cx: CGFloat, cy: CGFloat, maxR: CGFloat, n: Int) -> some View {
+        let a0 = radarAngle(i: 0, n: n)
+        Text("50%")
+            .font(.system(size: 8))
+            .foregroundStyle(Color.secondary.opacity(0.35))
+            .position(x: cx + maxR * 0.5 * cos(a0) + 10,
+                      y: cy + maxR * 0.5 * sin(a0))
+        Text("100%")
+            .font(.system(size: 8))
+            .foregroundStyle(Color.secondary.opacity(0.35))
+            .position(x: cx + maxR * cos(a0) + 12,
+                      y: cy + maxR * sin(a0))
+    }
+
+    private func handleHover(_ phase: HoverPhase, cx: CGFloat, cy: CGFloat, maxR: CGFloat, n: Int) {
+        if case .active(let loc) = phase {
+            func radarPoint(offset: Int, pct: Double) -> CGPoint {
+                let a = radarAngle(i: offset, n: n)
+                let r = maxR * CGFloat(pct) / 100
+                return CGPoint(x: cx + r * cos(a), y: cy + r * sin(a))
+            }
+            let closest = coverages.prefix(n).enumerated().min { a, b in
+                let pa = radarPoint(offset: a.offset, pct: a.element.pct)
+                let pb = radarPoint(offset: b.offset, pct: b.element.pct)
+                return hypot(loc.x - pa.x, loc.y - pa.y) < hypot(loc.x - pb.x, loc.y - pb.y)
+            }
+            withAnimation(.easeInOut(duration: 0.1)) { hoveredId = closest?.element.id }
+        } else {
+            withAnimation(.easeInOut(duration: 0.1)) { hoveredId = nil }
+        }
+    }
+}
+
+// 网格多边形
+private struct RadarGridShape: Shape {
+    let n: Int; let fraction: CGFloat
+    func path(in rect: CGRect) -> Path {
+        let cx = rect.width / 2, cy = rect.height / 2
+        let r  = min(rect.width, rect.height) * 0.40 * fraction
+        var p  = Path()
+        for i in 0..<n {
+            let a  = -Double.pi/2 + 2*Double.pi*Double(i)/Double(n)
+            let pt = CGPoint(x: cx + r * cos(a), y: cy + r * sin(a))
+            i == 0 ? p.move(to: pt) : p.addLine(to: pt)
+        }
+        p.closeSubpath(); return p
+    }
+}
+
+// 轴线
+private struct RadarAxisShape: Shape {
+    let i: Int; let n: Int
+    func path(in rect: CGRect) -> Path {
+        let cx = rect.width / 2, cy = rect.height / 2
+        let r  = min(rect.width, rect.height) * 0.40
+        let a  = -Double.pi/2 + 2*Double.pi*Double(i)/Double(n)
+        var p  = Path()
+        p.move(to: CGPoint(x: cx, y: cy))
+        p.addLine(to: CGPoint(x: cx + r * cos(a), y: cy + r * sin(a)))
+        return p
+    }
+}
+
+// 数据多边形（可动画）
+private struct RadarDataShape: Shape {
+    let coverages: [LevelCoverage]
+    let n: Int
+    var progress: CGFloat
+    var animatableData: CGFloat { get { progress } set { progress = newValue } }
+
+    func path(in rect: CGRect) -> Path {
+        let cx = rect.width / 2, cy = rect.height / 2
+        let maxR = min(rect.width, rect.height) * 0.40
+        var p = Path()
+        for (i, cov) in coverages.enumerated() {
+            let a  = -Double.pi/2 + 2*Double.pi*Double(i)/Double(n)
+            let r  = maxR * CGFloat(cov.pct) / 100.0 * progress
+            let pt = CGPoint(x: cx + r * cos(a), y: cy + r * sin(a))
+            i == 0 ? p.move(to: pt) : p.addLine(to: pt)
+        }
+        p.closeSubpath(); return p
+    }
+}
+
+private struct RadarInfoPopover: View {
+    let coverages: [LevelCoverage]
+    @Environment(DataStore.self) private var store
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("综合实力雷达图", systemImage: "chart.xyaxis.line")
+                .font(.headline)
+
+            Text("每条轴代表一个学习内容，**满分100分**，两个维度各占50分：")
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ScoreDimRow(icon: "checkmark.circle.fill", color: .blue,
+                            title: "覆盖率（0–50分）",
+                            desc: "已复习过至少1次的课 ÷ 总课数 × 50")
+                ScoreDimRow(icon: "repeat.circle.fill", color: .orange,
+                            title: "复习深度（0–50分）",
+                            desc: "每节课都达到 N 次才能升阶，以最薄弱那节课的进度计分")
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("各内容当前阶段").font(.callout).fontWeight(.medium)
+                ForEach(coverages) { cov in
+                    TierRow(cov: cov, store: store)
+                }
+            }
+
+            Divider()
+
+            Label("鼠标悬停可查看各内容的具体数值", systemImage: "cursorarrow.motionlines")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(width: 310)
+    }
+}
+
+private struct TierRow: View {
+    let cov: LevelCoverage
+    let store: DataStore
+    @State private var editing = false
+    @State private var stepInput = ""
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle().fill(levelColor(cov.id)).frame(width: 7, height: 7)
+            Text(cov.id).font(.caption).fontWeight(.medium)
+            Spacer()
+            Text("第\(cov.tierNumber)阶  \(cov.minReviews)/\(cov.tierCeil)次")
+                .font(.caption).foregroundStyle(.secondary)
+            if editing {
+                TextField("N", text: $stepInput)
+                    .frame(width: 36)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                    .onSubmit { commitStep() }
+                Button("✓") { commitStep() }
+                    .buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
+            } else {
+                Button("N=\(cov.tierStep)") { stepInput = "\(cov.tierStep)"; editing = true }
+                    .buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
             }
         }
-        .chartYAxis {
-            AxisMarks { AxisValueLabel().font(.system(size: 12, weight: .medium)) }
+    }
+
+    private func commitStep() {
+        if let n = Int(stepInput), n > 0,
+           let idx = store.levels.firstIndex(where: { $0.id == cov.id }) {
+            store.levels[idx].tierStep = n
+            store.save()
         }
-        .chartOverlay { proxy in
-            GeometryReader { geo in
-                Color.clear.contentShape(Rectangle())
-                    .onContinuousHover { phase in
-                        switch phase {
-                        case .active(let loc):
-                            let frame = geo[proxy.plotFrame!]
-                            let y = loc.y - frame.origin.y
-                            withAnimation(.easeInOut(duration: 0.1)) {
-                                hoveredId = proxy.value(atY: y, as: String.self)
-                            }
-                        case .ended:
-                            withAnimation(.easeInOut(duration: 0.1)) { hoveredId = nil }
-                        }
-                    }
+        editing = false
+    }
+}
+
+private struct ScoreDimRow: View {
+    let icon: String; let color: Color; let title: String; let desc: String
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon).foregroundStyle(color).frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.callout).fontWeight(.medium)
+                Text(desc).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -336,11 +591,15 @@ struct CoverageChartCard: View {
 private struct CoverageTooltip: View {
     let lv: LevelCoverage
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Circle().fill(levelColor(lv.id)).frame(width: 7, height: 7)
             Text(lv.id).font(.caption).fontWeight(.medium)
             Text("·").foregroundStyle(.secondary)
-            Text("\(lv.reviewed)/\(lv.total) 课  \(String(format: "%.0f%%", lv.pct))")
+            Text("\(String(format: "%.0f", lv.pct))分")
+                .font(.caption).fontWeight(.medium).foregroundStyle(.primary)
+            Text("覆\(lv.reviewed)/\(lv.total)")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("均\(String(format: "%.1f", lv.total > 0 ? Double(lv.totalReviews)/Double(lv.total) : 0))/\(lv.tierStep)次")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 9).padding(.vertical, 4)

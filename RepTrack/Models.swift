@@ -3,6 +3,20 @@ import Foundation
 struct Level: Identifiable, Codable, Hashable {
     let id: String
     var lessons: [Lesson]
+    var tierStep: Int = 5
+
+    init(id: String, lessons: [Lesson], tierStep: Int = 5) {
+        self.id = id
+        self.lessons = lessons
+        self.tierStep = tierStep
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id       = try c.decode(String.self,   forKey: .id)
+        lessons  = try c.decode([Lesson].self, forKey: .lessons)
+        tierStep = try c.decodeIfPresent(Int.self, forKey: .tierStep) ?? 5
+    }
 }
 
 struct Lesson: Identifiable, Codable, Hashable {

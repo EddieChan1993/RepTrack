@@ -8,6 +8,7 @@ A native macOS app for tracking spaced-repetition language course reviews.
 
 - **Multi-level course management** — import lesson folders (e.g. S1-EK, S2-IC, S3-IK) or add lessons manually; drag tabs to reorder levels
 - **Batch session logging** — record multiple lessons across multiple levels and multiple dates in a single save
+- **综合实力雷达图** — 每个等级满分100分，覆盖率（50分）+ 复习深度（50分）双维度评分；频次采用阶梯制，每节课复习满N次升阶（N可自定义，默认5次），防止单课刷高分；点击 ⓘ 查看各等级当前阶段及得分说明
 - **Interactive stats** — coverage and review-count charts powered by Swift Charts; hover for tooltips; tap stat cards to cycle Today / This Week / This Month
 - **Review log** — chronological list grouped by month; inline edit or delete with confirmation; auto-refreshes when the app returns from background
 - **Daily email reminder** — send today's recommendations, today's reviewed content, and yesterday's review content directly via SMTP (no mail client needed); beautifully formatted HTML email with level badges and review-count chips matching app colors
