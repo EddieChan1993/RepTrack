@@ -115,6 +115,15 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-04 (本次)
+- 🐛 修复：删除等级后覆盖率图 / 推荐列表不刷新 → `.id(levelKey)` 绑定等级集合，等级增删时强制重建两个卡片
+- 🐛 修复：LogView 在 `store.levels.count` 变化时递增 `listRefreshID`，删除等级后日志立即刷新
+- ♻️ 优化：覆盖率图高度改为固定 200px，Swift Charts 自动压缩柱条，不再随等级数增长溢出
+- ♻️ 优化：推荐卡 / 单等级推荐卡默认高度改为 270，防止 PreferenceKey 首帧未触发时撑高布局
+- ♻️ 优化：VSplitView 恢复使用，`idealHeight: 440` 让分割线默认落在内容高度处（替代之前空白的 50/50 分割）
+- 🆕 新增：每日邮件新增「今日已复习内容」区块（✅ 图标），与推荐复习和昨天复习并列展示
+- ♻️ 优化：邮件等级颜色改用与 app Helpers.swift 完全相同的哈希算法 + 10 色调色板，颜色一致
+
 ### 2026-06-03
 - 🆕 新增：每日复习邮件直发功能，不再依赖系统邮件客户端
   - `EmailService.swift`：通过 macOS 内置 curl 发送 SMTP/SMTPS，密码存 Keychain

@@ -71,13 +71,22 @@ final class DataStore {
         return (subject: subject, body: buildHTML(dateLabel: todayStr))
     }
 
+    /// 与 Helpers.swift levelColor() 使用完全相同的哈希算法 + 调色板，确保邮件颜色和 app 一致。
     private func levelHexColor(_ id: String) -> String {
-        switch id {
-        case "S1-EK": return "#007AFF"
-        case "S2-IC": return "#34C759"
-        case "S3-IK": return "#FF9500"
-        default:       return "#8E8E93"
-        }
+        let palette = [
+            "#E0954F", // hue 0.08 橙
+            "#56BF74", // hue 0.38 绿
+            "#5486D1", // hue 0.60 蓝
+            "#9966CC", // hue 0.75 紫
+            "#59BAC7", // hue 0.52 青
+            "#D96185", // hue 0.95 粉红
+            "#D16354", // hue 0.02 红
+            "#637FC7", // hue 0.62 蓝紫
+            "#60BFA3", // hue 0.45 青绿
+            "#D173B7", // hue 0.88 淡紫
+        ]
+        let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
+        return palette[hash % palette.count]
     }
 
     private func countBadgeStyle(_ count: Int) -> (bg: String, fg: String) {
@@ -135,15 +144,14 @@ final class DataStore {
             }
         }
 
-        // ── 昨天复习 HTML ───────────────────────────
-        let cal = Calendar.current
-        let yesterday = sessions.filter { cal.isDateInYesterday($0.date) }
-        var yestHTML = ""
-        if yesterday.isEmpty {
-            yestHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>昨天没有复习记录</div>"
-        } else {
-            for session in yesterday {
-                let df = DateFormatter(); df.locale = Locale(identifier: "zh_CN"); df.dateFormat = "MM月dd日 EEEE"
+        // ── 通用：session 列表 → HTML ────────────────
+        func sessionListHTML(_ list: [ReviewSession], emptyMsg: String) -> String {
+            guard !list.isEmpty else {
+                return "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>\(emptyMsg)</div>"
+            }
+            var html = ""
+            let df = DateFormatter(); df.locale = Locale(identifier: "zh_CN"); df.dateFormat = "MM月dd日 EEEE"
+            for session in list {
                 var itemRows = ""
                 let sorted = session.items.sorted { a, b in
                     (levels.firstIndex { $0.id == a.levelId } ?? Int.max) <
@@ -154,24 +162,31 @@ final class DataStore {
                     let lessons = item.lessonIds
                         .compactMap { lid in levels.flatMap(\.lessons).first { $0.id == lid } }
                         .sorted { lessonNumberLess($0.number, $1.number) }
-                    let chips = lessons.map { "<span style='background:\(color)22;color:\(color);padding:2px 8px;border-radius:5px;font-size:13px;margin-right:4px;display:inline-block;margin-bottom:4px;'>\($0.displayName)</span>" }.joined()
+                    let chips = lessons.map {
+                        "<span style='background:\(color)22;color:\(color);padding:2px 8px;border-radius:5px;font-size:13px;margin-right:4px;display:inline-block;margin-bottom:4px;'>\($0.displayName)</span>"
+                    }.joined()
                     itemRows += """
                     <tr>
-                      <td style='padding:4px 0 4px;vertical-align:top;width:72px;'>
+                      <td style='padding:4px 0;vertical-align:top;width:72px;'>
                         <span style='background:\(color);color:#fff;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:700;white-space:nowrap;'>\(item.levelId)</span>
                       </td>
                       <td style='padding:4px 0 4px 6px;'>\(chips)</td>
                     </tr>
                     """
                 }
-                yestHTML += """
+                html += """
                 <div style='padding:14px 20px;'>
                   <div style='font-size:14px;font-weight:600;color:#3C3C43;margin-bottom:10px;'>\(df.string(from: session.date))</div>
                   <table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;'>\(itemRows)</table>
                 </div>
                 """
             }
+            return html
         }
+
+        let cal = Calendar.current
+        let todayHTML     = sessionListHTML(sessions.filter { cal.isDateInToday($0.date) },     emptyMsg: "今天暂无复习记录")
+        let yesterdayHTML = sessionListHTML(sessions.filter { cal.isDateInYesterday($0.date) }, emptyMsg: "昨天没有复习记录")
 
         // ── Full HTML ───────────────────────────────
         return """
@@ -190,7 +205,7 @@ final class DataStore {
 
           <div style='padding:20px 12px 0;'>
 
-            <!-- 推荐复习 -->
+            <!-- 今日推荐 -->
             <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
               <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
                 <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>⭐</span>
@@ -199,13 +214,22 @@ final class DataStore {
               \(recHTML)
             </div>
 
+            <!-- 今日已复习 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>✅</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>今日已复习内容</span>
+              </div>
+              \(todayHTML)
+            </div>
+
             <!-- 昨天复习 -->
             <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
               <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
                 <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>📅</span>
                 <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>昨天复习内容</span>
               </div>
-              \(yestHTML)
+              \(yesterdayHTML)
             </div>
 
             <!-- Footer -->

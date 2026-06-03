@@ -76,6 +76,9 @@ struct LogView: View {
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     listRefreshID += 1
                 }
+                .onChange(of: store.levels.count) { _, _ in
+                    listRefreshID += 1
+                }
             }
         }
         .sheet(item: $editingSession) { session in
@@ -108,8 +111,13 @@ private struct MonthSectionHeader: View {
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.accentColor)
+                .frame(width: 3, height: 16)
             Text(title)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.primary)
             Spacer()
             Button { onClear() } label: {
                 HStack(spacing: 4) {

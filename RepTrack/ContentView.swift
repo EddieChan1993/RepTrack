@@ -12,7 +12,7 @@ struct ContentView: View {
     var body: some View {
         VSplitView {
             StatsView()
-                .frame(minHeight: 360, idealHeight: 420, maxHeight: 520)
+                .frame(minHeight: 180, idealHeight: 440, maxHeight: 560)
             LogView()
                 .frame(minHeight: 200)
         }

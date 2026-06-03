@@ -235,14 +235,17 @@ struct AllLevelsContent: View {
             ContentUnavailableView("暂无课程数据", systemImage: "folder.badge.plus",
                 description: Text("点击工具栏文件夹图标导入课程目录"))
         } else {
+            let levelKey = store.levels.map(\.id).joined()
             HStack(alignment: .top, spacing: 14) {
                 CoverageChartCard(coverages: levelCoverages)
+                    .id(levelKey)
                     .background(GeometryReader { geo in
                         Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
                     })
                 RecommendedLessonsCard()
+                    .id(levelKey)
                     .frame(minWidth: 190, maxWidth: 240)
-                    .frame(height: chartCardHeight > 0 ? chartCardHeight : nil)
+                    .frame(height: chartCardHeight > 0 ? chartCardHeight : 270)
             }
             .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         }
@@ -270,7 +273,7 @@ struct CoverageChartCard: View {
             .animation(.easeInOut(duration: 0.12), value: hoveredId)
 
             coverageChart
-                .frame(height: CGFloat(max(coverages.count, 1)) * 44 + 16)
+                .frame(height: 200)
                 .animation(.spring(response: 0.6, dampingFraction: 0.82), value: animate)
         }
         .padding(16)
@@ -463,7 +466,7 @@ struct LevelContent: View {
                     })
                 LevelRecommendedCard(stats: stats)
                     .frame(minWidth: 190, maxWidth: 240)
-                    .frame(height: chartCardHeight > 0 ? chartCardHeight : nil)
+                    .frame(height: chartCardHeight > 0 ? chartCardHeight : 270)
             }
             .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         } else {
