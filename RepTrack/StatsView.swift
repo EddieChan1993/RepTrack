@@ -548,7 +548,7 @@ struct LessonCountChartCard: View {
     @State private var animate = false
 
     // stat cards (~64) + spacing (16) + chart-card header (38) + card padding (32) + scroll padding (32)
-    private var chartHeight: CGFloat { max(150, paneHeight - 182) }
+    private var chartHeight: CGFloat { max(150, paneHeight - 214) }
 
     private var hoveredStat: LessonStat? {
         guard let key = hoveredNumber else { return nil }

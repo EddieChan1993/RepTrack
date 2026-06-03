@@ -115,6 +115,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-06 (本次)
+- 🐛 修复：单等级 tab 的柱状图高度公式由 `paneHeight - 182` 改为 `paneHeight - 214`，与「全部」tab 对齐，使各 tab 底部均有一致的 16px 留白间距
+
 ### 2026-06-05 (本次)
 - ♻️ 优化：「全部」tab 覆盖率图高度改为 `paneHeight - 214` 动态计算，与单等级 tab 逻辑一致，拉伸窗格时图表自适应填满
 - 🐛 修复：拖动 VSplitView 分割线时图表即时跟手，去掉 `chartHeight` 变化时的 easeInOut 缓动
