@@ -126,6 +126,11 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - 🐛 修复：编译器类型检查超时（radarAngle、handleHover拆分子表达式）
 - 🐛 修复：新增字段导致旧数据加载失败，改用 `decodeIfPresent` 兼容
 
+### 2026-06-03 (SMTP 配置优化)
+- ♻️ 优化：授权码输入框改为明文 TextField，支持复制粘贴
+- 🆕 新增：重置按钮，清空所有 SMTP 配置及 Keychain 授权码
+- ♻️ 优化：保存按钮改为 ✕ 关闭图标，关闭时自动保存
+
 ### 2026-06-06 (本次)
 - 🐛 修复：单等级 tab 的柱状图高度公式由 `paneHeight - 182` 改为 `paneHeight - 214`，与「全部」tab 对齐，使各 tab 底部均有一致的 16px 留白间距
 

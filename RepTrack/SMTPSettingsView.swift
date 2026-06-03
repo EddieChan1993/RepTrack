@@ -9,7 +9,6 @@ struct SMTPSettingsView: View {
     @State private var senderEmail: String = ""
     @State private var password:    String = ""
     @State private var useSSL:      Bool   = true
-    @State private var saveHovered  = false
     // 用于清掉自动聚焦
     @FocusState private var focused: Bool
 
@@ -21,23 +20,24 @@ struct SMTPSettingsView: View {
             HStack {
                 Text("邮件发送配置").font(.title2).fontWeight(.semibold)
                 Spacer()
-                Button { saveConfig() } label: {
-                    Text("保存")
-                        .fontWeight(.semibold)
-                        .foregroundStyle(canSave ? .white : Color.secondary)
-                        .padding(.horizontal, 16).padding(.vertical, 6)
-                        .background(
-                            canSave
-                                ? AnyShapeStyle(Color.accentColor.opacity(saveHovered ? 0.75 : 1.0))
-                                : AnyShapeStyle(Color.secondary.opacity(0.15)),
-                            in: RoundedRectangle(cornerRadius: 8)
-                        )
-                        .scaleEffect(canSave && saveHovered ? 1.04 : 1.0)
-                        .animation(.easeInOut(duration: 0.12), value: saveHovered)
+                Button {
+                    resetConfig()
+                } label: {
+                    Text("重置")
+                        .font(.callout)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
-                .disabled(!canSave)
-                .onHover { if canSave { saveHovered = $0 } }
+                Button {
+                    saveConfig()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 16)
 
@@ -84,7 +84,7 @@ struct SMTPSettingsView: View {
                                 .textFieldStyle(.roundedBorder)
                         }
                         LabeledRow("授权码") {
-                            SecureField("邮箱授权码（非登录密码）", text: $password)
+                            TextField("邮箱授权码（非登录密码）", text: $password)
                                 .textFieldStyle(.roundedBorder)
                         }
 
@@ -130,7 +130,17 @@ struct SMTPSettingsView: View {
         store.smtpConfig = SMTPConfig(host: host, port: port,
                                       senderEmail: senderEmail, useSSL: useSSL)
         if !password.isEmpty { EmailService.shared.savePassword(password) }
-        dismiss()   // 保存后直接关闭
+        dismiss()
+    }
+
+    private func resetConfig() {
+        host        = ""
+        portStr     = "465"
+        senderEmail = ""
+        password    = ""
+        useSSL      = true
+        store.smtpConfig = SMTPConfig(host: "", port: 465, senderEmail: "", useSSL: true)
+        EmailService.shared.savePassword("")
     }
 }
 
