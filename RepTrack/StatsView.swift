@@ -114,7 +114,7 @@ struct StatsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if selectedTab == "全部" {
-                            AllLevelsContent()
+                            AllLevelsContent(paneHeight: proxy.size.height)
                         } else if let stats = store.levelStats(for: selectedTab) {
                             LevelContent(stats: stats, paneHeight: proxy.size.height)
                         } else {
@@ -201,6 +201,7 @@ struct LevelCoverage: Identifiable {
 
 struct AllLevelsContent: View {
     @Environment(DataStore.self) private var store
+    var paneHeight: CGFloat = 400
     @State private var reviewPeriod: StatPeriod = .week
     @State private var coveragePeriod: StatPeriod = .week
     @State private var chartCardHeight: CGFloat = 0
@@ -237,7 +238,7 @@ struct AllLevelsContent: View {
         } else {
             let levelKey = store.levels.map(\.id).joined()
             HStack(alignment: .top, spacing: 14) {
-                CoverageChartCard(coverages: levelCoverages)
+                CoverageChartCard(coverages: levelCoverages, paneHeight: paneHeight)
                     .id(levelKey)
                     .background(GeometryReader { geo in
                         Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
@@ -245,7 +246,7 @@ struct AllLevelsContent: View {
                 RecommendedLessonsCard()
                     .id(levelKey)
                     .frame(minWidth: 190, maxWidth: 240)
-                    .frame(height: chartCardHeight > 0 ? chartCardHeight : 270)
+                    .frame(height: chartCardHeight > 0 ? chartCardHeight : (paneHeight > 0 ? max(150, paneHeight - 214) : 280))
             }
             .onPreferenceChange(CardHeightKey.self) { chartCardHeight = $0 }
         }
@@ -254,8 +255,13 @@ struct AllLevelsContent: View {
 
 struct CoverageChartCard: View {
     let coverages: [LevelCoverage]
+    var paneHeight: CGFloat = 400
     @State private var hoveredId: String?
     @State private var animate = false
+
+    // 扣掉统计卡(~96) + 卡片头部(38) + 内外间距(~80) 剩余给图表
+    // paneHeight 首帧为 0，用 280 保底避免图表太矮被截断
+    private var chartHeight: CGFloat { paneHeight > 0 ? max(150, paneHeight - 214) : 280 }
 
     private var hoveredItem: LevelCoverage? { coverages.first { $0.id == hoveredId } }
 
@@ -273,7 +279,7 @@ struct CoverageChartCard: View {
             .animation(.easeInOut(duration: 0.12), value: hoveredId)
 
             coverageChart
-                .frame(height: 200)
+                .frame(height: chartHeight)
                 .animation(.spring(response: 0.6, dampingFraction: 0.82), value: animate)
         }
         .padding(16)
@@ -580,7 +586,6 @@ struct LessonCountChartCard: View {
             lessonChart
                 .frame(height: chartHeight)
                 .animation(.spring(response: 0.55, dampingFraction: 0.8), value: animate)
-                .animation(.easeInOut(duration: 0.2), value: chartHeight)
         }
         .padding(16)
         .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))

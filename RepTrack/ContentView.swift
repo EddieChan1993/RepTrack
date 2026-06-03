@@ -12,7 +12,8 @@ struct ContentView: View {
     var body: some View {
         VSplitView {
             StatsView()
-                .frame(minHeight: 180, idealHeight: 440, maxHeight: 560)
+                .frame(minHeight: 440, maxHeight: 600)
+                .background(SplitViewAutosaver())
             LogView()
                 .frame(minHeight: 200)
         }
@@ -69,6 +70,27 @@ struct ContentView: View {
         panel.prompt = "导入"
         if panel.runModal() == .OK {
             store.importLevelFolders(panel.urls)
+        }
+    }
+}
+
+// MARK: - VSplitView autosave helper
+// 找到底层 NSSplitView 并设置 autosaveName，让 AppKit 自动保存/恢复分割位置
+
+private struct SplitViewAutosaver: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { NSView() }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            var v: NSView? = nsView.superview
+            while let current = v {
+                if let split = current as? NSSplitView {
+                    if split.autosaveName == nil || split.autosaveName == "" {
+                        split.autosaveName = "RepTrack.MainSplitView"
+                    }
+                    break
+                }
+                v = current.superview
+            }
         }
     }
 }

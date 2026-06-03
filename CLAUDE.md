@@ -115,6 +115,12 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-05 (本次)
+- ♻️ 优化：「全部」tab 覆盖率图高度改为 `paneHeight - 214` 动态计算，与单等级 tab 逻辑一致，拉伸窗格时图表自适应填满
+- 🐛 修复：拖动 VSplitView 分割线时图表即时跟手，去掉 `chartHeight` 变化时的 easeInOut 缓动
+- 🐛 修复：VSplitView 分割位置在关闭后丢失 → 通过 `SplitViewAutosaver`（NSViewRepresentable）找到底层 NSSplitView 并设置 `autosaveName = "RepTrack.MainSplitView"`，利用 AppKit 原生 autosave 机制持久化
+- ⚡ 性能：build.sh 加 `-jobs $(sysctl -n hw.logicalcpu)` 用满 12 核并行编译，加速构建
+
 ### 2026-06-04 (本次)
 - 🐛 修复：删除等级后覆盖率图 / 推荐列表不刷新 → `.id(levelKey)` 绑定等级集合，等级增删时强制重建两个卡片
 - 🐛 修复：LogView 在 `store.levels.count` 变化时递增 `listRefreshID`，删除等级后日志立即刷新

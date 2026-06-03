@@ -48,6 +48,7 @@ xcodebuild \
   -scheme RepTrack \
   -configuration Debug \
   -derivedDataPath "$BUILD_DIR" \
+  -jobs "$(sysctl -n hw.logicalcpu)" \
   build > "$LOG" 2>&1
 
 STATUS=$?
