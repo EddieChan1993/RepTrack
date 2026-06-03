@@ -1,50 +1,47 @@
-# BananaTrack 🍌
+# RepTrack
 
-A native macOS app for tracking spaced-repetition language course reviews.
+一款用于追踪间隔重复语言课程复习进度的 macOS 原生应用。
 
-![RepTrack screenshot](docs/screenshot.png)
+![RepTrack 截图](docs/screenshot.png)
 
-## Features
+## 功能特性
 
-- **Multi-level course management** — import lesson folders (e.g. S1-EK, S2-IC, S3-IK) or add lessons manually; drag tabs to reorder levels
-- **Batch session logging** — record multiple lessons across multiple levels and multiple dates in a single save
+- **多等级课程管理** — 导入课程文件夹（如 S1-EK、S2-IC、S3-IK）或手动添加课时；拖拽标签页调整等级顺序
+- **批量记录复习** — 单次保存支持跨多个等级、多个日期的课程记录
 - **综合实力雷达图** — 每个等级满分100分，覆盖率（50分）+ 复习深度（50分）双维度评分；频次采用阶梯制，每节课复习满N次升阶（N可自定义，默认5次），防止单课刷高分；点击 ⓘ 查看各等级当前阶段及得分说明
-- **Interactive stats** — coverage and review-count charts powered by Swift Charts; hover for tooltips; tap stat cards to cycle Today / This Week / This Month
-- **Review log** — chronological list grouped by month; inline edit or delete with confirmation; auto-refreshes when the app returns from background
-- **Daily email reminder** — send today's recommendations, today's reviewed content, and yesterday's review content directly via SMTP (no mail client needed); beautifully formatted HTML email with level badges and review-count chips matching app colors
-- **Cloud-sync friendly** — point the data file at any folder (Nutstore, iCloud Drive, Dropbox) on first launch or via the toolbar; export/import JSON backups at any time
+- **统计卡片** — 总课数、复习课数、覆盖率，支持按今日 / 本周 / 本月切换，悬停查看详细数值
+- **复习日志** — 按月分组的时间轴列表，支持行内编辑和删除，从后台恢复后自动刷新
+- **每日邮件提醒** — 通过 SMTP 直接发送今日推荐、今日已复习、昨日复习内容，无需系统邮件客户端；支持 QQ / 163 / Gmail / Outlook 快捷预设
+- **云同步友好** — 首次启动或通过工具栏可将数据文件指向任意文件夹（坚果云、iCloud Drive、Dropbox 等）；随时导出 / 导入 JSON 备份
 
-## Requirements
+## 系统要求
 
-- macOS 14 Sonoma or later
-- Xcode 15 or later (to build from source)
+- macOS 14 Sonoma 及以上
+- Xcode 15 及以上（从源码构建时需要）
 
-## Getting Started
+## 快速开始
 
-1. Clone the repo and open `RepTrack.xcodeproj` in Xcode
-2. Build and run (⌘R)
-3. On first launch, choose where to store your data file (or keep the default `~/Library/Application Support/BananaTrack/data.json`)
-4. Click the folder-plus toolbar icon to import a course directory, or add lessons manually via the level tabs
+1. 克隆仓库，用 Xcode 打开 `RepTrack.xcodeproj`
+2. 构建并运行（⌘R）
+3. 首次启动时选择数据文件存储位置（默认为 `~/Library/Application Support/RepTrack/data.json`）
+4. 点击工具栏文件夹图标导入课程目录，或在等级标签页中手动添加课时
 
-### Importing a course directory
+### 导入课程目录
 
-Each selected folder becomes one **level** (e.g. `S3-IK`). Files inside the folder become **lessons** — the filename stem is parsed as `<number>.<title>`, for example:
+每个选中的文件夹对应一个**等级**（如 `S3-IK`），文件夹内的文件对应**课时**，文件名格式为 `<编号>.<标题>`，例如：
 
 ```
 课程根目录/
-├── S1-EK/                   ← 等级文件夹（文件夹名即等级 ID）
+├── S1-EK/
 │   ├── 001.一般过去式 When.md
 │   ├── 002.时间介词.md
 │   └── 003.购物.md
 ├── S2-IC/
 │   ├── 000.话题通关.md
-│   ├── 001.广告.md
-│   └── 021.职业技能.md
+│   └── 001.广告.md
 └── S3-IK/
     ├── 011.烹饪.md
-    ├── 012.点餐.md
-    ├── 043.时态梳理.md
-    └── 044.人生经历.md
+    └── 012.点餐.md
 ```
 
 **文件命名规则：**
@@ -54,48 +51,60 @@ Each selected folder becomes one **level** (e.g. `S3-IK`). Files inside the fold
 | `<编号>` | 纯数字，支持前置零（`011` 与 `11` 视为同一课） | `011`、`43` |
 | `.` | 分隔符（英文句点） | |
 | `<标题>` | 课程名称，可含中英文及空格 | `烹饪`、`一般过去式 When` |
-| 扩展名 | 任意（`.md` 推荐），非数字开头的文件自动忽略 | `.md` |
+| 扩展名 | 任意（推荐 `.md`），非数字开头的文件自动忽略 | `.md` |
 
 **导入行为：**
 - 首次导入：按文件列表创建等级和课程
-- **重新导入同一文件夹**：已有文件 → 标题更新；新增文件 → 追加课程；**已删除文件 → 对应课程自动移除**，相关复习日志同步清理
-- 可同时选择多个等级文件夹，一次性批量导入
+- 重新导入同一文件夹：已有文件更新标题，新增文件追加课程，已删除文件自动移除并级联清理复习日志
+- 支持同时选择多个等级文件夹，一次性批量导入
 
-## Adding a Review Session
+## 添加复习记录
 
-1. Press **⌘N** or click **+** in the toolbar
-2. Click lesson chips to select them (highlighted = selected; click again to deselect); switch levels to select from multiple levels
-3. Click **添加** to commit the current selection to the pending list; use **清除** to reset
-4. Click **保存记录** — sessions are grouped by date automatically
+1. 按 **⌘N** 或点击工具栏 **+** 按钮
+2. 点击课时芯片选中（高亮为已选，再次点击取消）；切换等级可跨等级选课
+3. 点击**添加**将当前选中提交到待保存列表
+4. 点击**保存记录**，同一日期的记录自动合并
 
-## Data Format
+## 数据格式
 
-Data is stored as a single JSON file:
+数据存储为单一 JSON 文件：
 
 ```json
 {
-  "levels": [{ "id": "S3-IK", "lessons": [...] }],
+  "levels": [{ "id": "S3-IK", "lessons": [...], "tierStep": 5 }],
   "sessions": [{ "id": "...", "date": "...", "items": [...] }]
 }
 ```
 
-You can export a snapshot at any time via the drive toolbar icon → **导出备份**, and restore it with **从文件导入**.
+可通过工具栏云盘图标随时导出备份，或从文件导入恢复。
 
-## Project Structure
+## 项目结构
 
 ```
 RepTrack/
-├── Models.swift            # Value types (Level, Lesson, ReviewSession, …)
-├── DataStore.swift         # @Observable store — CRUD + persistence
-├── Helpers.swift           # Pure utilities and StatPeriod enum
-├── ContentView.swift       # Root VSplitView layout + toolbar
-├── StatsView.swift         # Tab bar + stat cards + Swift Charts
-├── LogView.swift           # Session list with edit/delete
-├── AddSessionView.swift    # Add/edit session sheet
-├── DataSettingsView.swift  # Storage location + import/export
-└── ManageLevelsView.swift  # Level and lesson management
+├── Models.swift            # 数据模型（Level、Lesson、ReviewSession 等）
+├── DataStore.swift         # @Observable 数据层，CRUD + 持久化
+├── Helpers.swift           # 纯工具函数、StatPeriod 枚举
+├── ContentView.swift       # 根视图 VSplitView 布局 + 工具栏
+├── StatsView.swift         # 标签栏 + 统计卡片 + 雷达图
+├── LogView.swift           # 复习日志列表，支持编辑/删除
+├── AddSessionView.swift    # 添加/编辑复习记录弹窗
+├── EmailService.swift      # SMTP 邮件发送服务
+├── SMTPSettingsView.swift  # 邮件配置界面
+├── DataSettingsView.swift  # 存储位置 + 导入/导出
+└── ManageLevelsView.swift  # 等级和课时管理
 ```
 
-## License
+---
 
-MIT
+## 版权声明
+
+Copyright © 2026 EddieChan1993. All rights reserved.
+
+本软件及其源代码受版权法保护。
+
+- **禁止未经授权的商业使用**：未获得作者书面授权，不得将本软件或其任何衍生版本用于任何商业目的，包括但不限于销售、出租、捆绑销售或以盈利为目的的分发。
+- **个人学习使用**：仅允许在获得授权的设备上用于个人非商业用途。
+- **禁止二次分发**：未经授权不得以任何形式转发、再分发本软件的安装包或源代码。
+
+如需商业授权或合作，请联系：**wx DC_Wen** 或邮箱 **dc_wen666666@163.com**
