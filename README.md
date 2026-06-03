@@ -1,3 +1,5 @@
+[English](README_EN.md) | 中文
+
 # RepTrack
 
 一款用于追踪间隔重复语言课程复习进度的 macOS 原生应用。
