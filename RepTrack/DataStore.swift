@@ -17,6 +17,206 @@ final class DataStore {
     private static let dataPathKey    = "RepTrack.dataFilePath"
     private static let hasSetupKey    = "RepTrack.hasCompletedSetup"
     private static let folderMapKey   = "RepTrack.levelFolderPaths"
+    private static let recipientEmailKey = "RepTrack.recipientEmail"
+    private static let smtpHostKey       = "RepTrack.smtpHost"
+    private static let smtpPortKey       = "RepTrack.smtpPort"
+    private static let smtpUserKey       = "RepTrack.smtpUser"
+    private static let smtpSSLKey        = "RepTrack.smtpSSL"
+
+    // MARK: - Email
+
+    var recipientEmail: String {
+        get { UserDefaults.standard.string(forKey: DataStore.recipientEmailKey) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.recipientEmailKey) }
+    }
+
+    var smtpConfig: SMTPConfig {
+        get {
+            let port = UserDefaults.standard.integer(forKey: DataStore.smtpPortKey)
+            let ssl  = UserDefaults.standard.object(forKey: DataStore.smtpSSLKey)
+            return SMTPConfig(
+                host:        UserDefaults.standard.string(forKey: DataStore.smtpHostKey) ?? "",
+                port:        port == 0 ? 465 : port,
+                senderEmail: UserDefaults.standard.string(forKey: DataStore.smtpUserKey) ?? "",
+                useSSL:      ssl == nil ? true : UserDefaults.standard.bool(forKey: DataStore.smtpSSLKey)
+            )
+        }
+        set {
+            UserDefaults.standard.set(newValue.host,        forKey: DataStore.smtpHostKey)
+            UserDefaults.standard.set(newValue.port,        forKey: DataStore.smtpPortKey)
+            UserDefaults.standard.set(newValue.senderEmail, forKey: DataStore.smtpUserKey)
+            UserDefaults.standard.set(newValue.useSSL,      forKey: DataStore.smtpSSLKey)
+        }
+    }
+
+    var smtpConfigured: Bool {
+        let c = smtpConfig
+        return !c.host.isEmpty && !c.senderEmail.isEmpty && !EmailService.shared.loadPassword().isEmpty
+    }
+
+    func sendDailyEmail(to recipient: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let (subject, body) = buildEmailContent()
+        EmailService.shared.send(config: smtpConfig, to: recipient,
+                                  subject: subject, body: body, completion: completion)
+    }
+
+    // MARK: - HTML email builder
+
+    private func buildEmailContent() -> (subject: String, body: String) {
+        let dateFmt = DateFormatter()
+        dateFmt.locale = Locale(identifier: "zh_CN")
+        dateFmt.dateFormat = "yyyy年MM月dd日 EEEE"
+        let todayStr = dateFmt.string(from: Date())
+        let subject  = "📚 今日复习提醒 · \(todayStr)"
+        return (subject: subject, body: buildHTML(dateLabel: todayStr))
+    }
+
+    private func levelHexColor(_ id: String) -> String {
+        switch id {
+        case "S1-EK": return "#007AFF"
+        case "S2-IC": return "#34C759"
+        case "S3-IK": return "#FF9500"
+        default:       return "#8E8E93"
+        }
+    }
+
+    private func countBadgeStyle(_ count: Int) -> (bg: String, fg: String) {
+        if count == 0 { return ("#FFF3E0", "#E65100") }
+        if count <= 2 { return ("#E3F2FD", "#1565C0") }
+        return ("#E8F5E9", "#2E7D32")
+    }
+
+    private func buildHTML(dateLabel: String) -> String {
+        // ── 推荐复习 HTML ───────────────────────────
+        struct RecLevel { let id: String; let avg: Double; let stats: [LessonStat] }
+        let recLevels: [RecLevel] = levels.compactMap { level in
+            guard !level.lessons.isEmpty else { return nil }
+            let stats = level.lessons.map { lesson in
+                LessonStat(lesson: lesson,
+                           reviewCount: reviewCount(for: lesson.id),
+                           lastReviewed: lastReviewed(lessonId: lesson.id))
+            }
+            let top = topRecommendations(stats)
+            guard !top.isEmpty else { return nil }
+            let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
+            return RecLevel(id: level.id, avg: avg, stats: top)
+        }
+
+        var recHTML = ""
+        if recLevels.isEmpty {
+            recHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>暂无推荐（课程复习数据不足）</div>"
+        } else {
+            for (i, rec) in recLevels.enumerated() {
+                let color     = levelHexColor(rec.id)
+                let isLast    = i == recLevels.count - 1
+                let separator = isLast ? "" : "border-bottom:1px solid #F2F2F7;"
+                var lessonRows = ""
+                for stat in rec.stats {
+                    let (bg, fg) = countBadgeStyle(stat.reviewCount)
+                    let countTip = stat.reviewCount == 0 ? "未复习" : "已复习 \(stat.reviewCount) 次"
+                    lessonRows += """
+                    <tr>
+                      <td style='padding:7px 0;font-size:14px;color:#1C1C1E;'>\(stat.lesson.displayName)</td>
+                      <td style='padding:7px 0;text-align:right;'>
+                        <span style='background:\(bg);color:\(fg);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;'>\(countTip)</span>
+                      </td>
+                    </tr>
+                    """
+                }
+                recHTML += """
+                <div style='padding:14px 20px;\(separator)'>
+                  <div style='margin-bottom:10px;'>
+                    <span style='background:\(color);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;'>\(rec.id)</span>
+                    <span style='color:#8E8E93;font-size:12px;margin-left:8px;'>均复习 \(String(format: "%.1f", rec.avg)) 次</span>
+                  </div>
+                  <table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;'>\(lessonRows)</table>
+                </div>
+                """
+            }
+        }
+
+        // ── 昨天复习 HTML ───────────────────────────
+        let cal = Calendar.current
+        let yesterday = sessions.filter { cal.isDateInYesterday($0.date) }
+        var yestHTML = ""
+        if yesterday.isEmpty {
+            yestHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>昨天没有复习记录</div>"
+        } else {
+            for session in yesterday {
+                let df = DateFormatter(); df.locale = Locale(identifier: "zh_CN"); df.dateFormat = "MM月dd日 EEEE"
+                var itemRows = ""
+                let sorted = session.items.sorted { a, b in
+                    (levels.firstIndex { $0.id == a.levelId } ?? Int.max) <
+                    (levels.firstIndex { $0.id == b.levelId } ?? Int.max)
+                }
+                for item in sorted {
+                    let color = levelHexColor(item.levelId)
+                    let lessons = item.lessonIds
+                        .compactMap { lid in levels.flatMap(\.lessons).first { $0.id == lid } }
+                        .sorted { lessonNumberLess($0.number, $1.number) }
+                    let chips = lessons.map { "<span style='background:\(color)22;color:\(color);padding:2px 8px;border-radius:5px;font-size:13px;margin-right:4px;display:inline-block;margin-bottom:4px;'>\($0.displayName)</span>" }.joined()
+                    itemRows += """
+                    <tr>
+                      <td style='padding:4px 0 4px;vertical-align:top;width:72px;'>
+                        <span style='background:\(color);color:#fff;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:700;white-space:nowrap;'>\(item.levelId)</span>
+                      </td>
+                      <td style='padding:4px 0 4px 6px;'>\(chips)</td>
+                    </tr>
+                    """
+                }
+                yestHTML += """
+                <div style='padding:14px 20px;'>
+                  <div style='font-size:14px;font-weight:600;color:#3C3C43;margin-bottom:10px;'>\(df.string(from: session.date))</div>
+                  <table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;'>\(itemRows)</table>
+                </div>
+                """
+            }
+        }
+
+        // ── Full HTML ───────────────────────────────
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+        <body style='margin:0;padding:0;background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;'>
+        <div style='max-width:600px;margin:0 auto;padding:0 0 40px;'>
+
+          <!-- Header -->
+          <div style='background:linear-gradient(135deg,#FF9500 0%,#FF6B00 100%);padding:40px 28px 32px;text-align:center;border-radius:0 0 28px 28px;'>
+            <div style='font-size:44px;line-height:1;margin-bottom:12px;'>📚</div>
+            <h1 style='margin:0 0 8px;color:#FFFFFF;font-size:22px;font-weight:700;letter-spacing:-0.3px;'>今日复习提醒</h1>
+            <p style='margin:0;color:rgba(255,255,255,0.88);font-size:14px;'>\(dateLabel)</p>
+          </div>
+
+          <div style='padding:20px 12px 0;'>
+
+            <!-- 推荐复习 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>⭐</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>今日推荐复习</span>
+              </div>
+              \(recHTML)
+            </div>
+
+            <!-- 昨天复习 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>📅</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>昨天复习内容</span>
+              </div>
+              \(yestHTML)
+            </div>
+
+            <!-- Footer -->
+            <p style='text-align:center;color:#AEAEB2;font-size:12px;margin:0;'>由 BananaTrack 自动生成 · \(dateLabel)</p>
+
+          </div>
+        </div>
+        </body>
+        </html>
+        """
+    }
 
     // Local-only folder map: levelId → absolute path (never written to the shared data file)
     private var folderMap: [String: String] {

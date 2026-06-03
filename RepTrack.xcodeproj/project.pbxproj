@@ -18,6 +18,8 @@
 		AA000000000000000020FFFF /* ManageLevelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000001FFFFF /* ManageLevelsView.swift */; };
 		AA000000000000000022FFFF /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000021FFFF /* Helpers.swift */; };
 		AA000000000000000024FFFF /* DataSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000023FFFF /* DataSettingsView.swift */; };
+		AA000000000000000026FFFF /* EmailService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000025FFFF /* EmailService.swift */; };
+		AA000000000000000028FFFF /* SMTPSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000027FFFF /* SMTPSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +35,8 @@
 		AA00000000000000001FFFFF /* ManageLevelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageLevelsView.swift; sourceTree = "<group>"; };
 		AA000000000000000021FFFF /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
 		AA000000000000000023FFFF /* DataSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSettingsView.swift; sourceTree = "<group>"; };
+		AA000000000000000025FFFF /* EmailService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailService.swift; sourceTree = "<group>"; };
+		AA000000000000000027FFFF /* SMTPSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +71,8 @@
 				AA00000000000000001FFFFF /* ManageLevelsView.swift */,
 				AA000000000000000021FFFF /* Helpers.swift */,
 				AA000000000000000023FFFF /* DataSettingsView.swift */,
+				AA000000000000000025FFFF /* EmailService.swift */,
+				AA000000000000000027FFFF /* SMTPSettingsView.swift */,
 				AA00000000000000000FFFFF /* Assets.xcassets */,
 			);
 			path = RepTrack;
@@ -159,6 +165,8 @@
 				AA000000000000000020FFFF /* ManageLevelsView.swift in Sources */,
 				AA000000000000000022FFFF /* Helpers.swift in Sources */,
 				AA000000000000000024FFFF /* DataSettingsView.swift in Sources */,
+				AA000000000000000026FFFF /* EmailService.swift in Sources */,
+				AA000000000000000028FFFF /* SMTPSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

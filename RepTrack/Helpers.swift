@@ -1,5 +1,36 @@
 import SwiftUI
 
+// MARK: - Recommendation scoring (shared between StatsView and email)
+
+/// Multi-dimensional weighted score — higher = more urgently needs review.
+func recommendScore(_ stat: LessonStat, avg: Double, maxDays: Double) -> Double {
+    let now = Date()
+    let countScore = (avg - Double(stat.reviewCount)) / (avg + 1)
+    let days: Double
+    if let last = stat.lastReviewed {
+        days = min(max(now.timeIntervalSince(last) / 86400, 0), maxDays)
+    } else {
+        days = maxDays
+    }
+    let recencyScore = maxDays > 0 ? days / maxDays : 1.0
+    return 0.7 * countScore + 0.3 * recencyScore
+}
+
+/// Top-N recommendations from a list of LessonStats (reviewed-only).
+func topRecommendations(_ stats: [LessonStat], count: Int = 4) -> [LessonStat] {
+    let reviewed = stats.filter { $0.reviewCount > 0 }
+    guard !reviewed.isEmpty else { return [] }
+    let avg = Double(reviewed.reduce(0) { $0 + $1.reviewCount }) / Double(reviewed.count)
+    let maxDays = reviewed.compactMap { $0.lastReviewed }
+        .map { Date().timeIntervalSince($0) / 86400 }
+        .max() ?? 30
+    return Array(
+        reviewed.sorted { recommendScore($0, avg: avg, maxDays: maxDays) >
+                          recommendScore($1, avg: avg, maxDays: maxDays) }
+            .prefix(count)
+    )
+}
+
 // MARK: - Flow layout (wrapping HStack)
 
 struct FlowLayout: Layout {

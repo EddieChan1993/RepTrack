@@ -2,46 +2,6 @@ import SwiftUI
 import Charts
 import UniformTypeIdentifiers
 
-// MARK: - Recommendation scoring
-
-/// Multi-dimensional weighted score — higher = more urgently needs review.
-/// countWeight (0.7): how far below the level average this lesson is.
-/// recencyWeight (0.3): how long ago it was last reviewed (or never = max days).
-private func recommendScore(_ stat: LessonStat, avg: Double, maxDays: Double) -> Double {
-    let now = Date()
-
-    // Count score: (avg - count) normalised; negative means already above average
-    let countScore = (avg - Double(stat.reviewCount)) / (avg + 1)
-
-    // Recency score: days since last review, capped and normalised to [0, 1]
-    let days: Double
-    if let last = stat.lastReviewed {
-        days = min(max(now.timeIntervalSince(last) / 86400, 0), maxDays)
-    } else {
-        days = maxDays   // never reviewed → treat as oldest possible
-    }
-    let recencyScore = maxDays > 0 ? days / maxDays : 1.0
-
-    return 0.7 * countScore + 0.3 * recencyScore
-}
-
-/// Sort a list of LessonStats by recommendation score and return the top N.
-/// Only lessons reviewed at least once are considered — never-reviewed lessons are excluded
-/// (they're obviously pending and the user doesn't need reminding).
-private func topRecommendations(_ stats: [LessonStat], count: Int = 4) -> [LessonStat] {
-    let reviewed = stats.filter { $0.reviewCount > 0 }
-    guard !reviewed.isEmpty else { return [] }
-    let avg = Double(reviewed.reduce(0) { $0 + $1.reviewCount }) / Double(reviewed.count)
-    let maxDays = reviewed.compactMap { $0.lastReviewed }
-        .map { Date().timeIntervalSince($0) / 86400 }
-        .max() ?? 30
-    return Array(
-        reviewed.sorted { recommendScore($0, avg: avg, maxDays: maxDays) >
-                          recommendScore($1, avg: avg, maxDays: maxDays) }
-            .prefix(count)
-    )
-}
-
 // MARK: - Main View
 
 struct StatsView: View {
@@ -299,7 +259,7 @@ struct CoverageChartCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("各等级覆盖率").font(.headline)
+                Text("各内容覆盖率").font(.headline)
                 Spacer()
                 if let lv = hoveredItem {
                     CoverageTooltip(lv: lv)
@@ -325,7 +285,7 @@ struct CoverageChartCard: View {
             let dimmed = hoveredId != nil && hoveredId != lv.id
             let opacity: Double = dimmed ? 0.3 : 1.0
             let xVal: Double = animate ? lv.pct : 0
-            BarMark(x: .value("覆盖率 %", xVal), y: .value("等级", lv.id))
+            BarMark(x: .value("覆盖率 %", xVal), y: .value("内容", lv.id))
                 .foregroundStyle(levelColor(lv.id).opacity(opacity).gradient)
                 .cornerRadius(6)
                 .annotation(position: .trailing, alignment: .leading, spacing: 6) {

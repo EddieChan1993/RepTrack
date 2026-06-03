@@ -115,6 +115,16 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-03
+- 🆕 新增：每日复习邮件直发功能，不再依赖系统邮件客户端
+  - `EmailService.swift`：通过 macOS 内置 curl 发送 SMTP/SMTPS，密码存 Keychain
+  - `SMTPSettingsView.swift`：SMTP 配置界面，含 QQ/163/Gmail/Outlook 快捷预设，保存后自动关闭
+  - 工具栏新增信封按钮，弹出 popover 填写收件人，显示发送中/成功/失败状态
+- ♻️ 优化：邮件内容改为 HTML 富文本，橙色渐变 header、彩色等级徽章、复习次数色块（未复习橙色、1-2次蓝色、3次+绿色）
+- ♻️ 优化：`recommendScore` / `topRecommendations` 移至 `Helpers.swift` 供 StatsView 和邮件功能共用
+- ♻️ 优化：AddSessionView 「等级」Picker 标签改为「内容」
+- ♻️ 优化：StatsView「各等级覆盖率」改为「各内容覆盖率」，图表 Y 轴系列名同步更新
+
 ### 2026-06-02
 - 🐛 修复：删除等级 tab 不再级联删除历史复习记录，数据完整保留
 - ♻️ 优化：LogView `grouped` 过滤只显示有对应 tab 的 session/item，重新导入后自动恢复显示

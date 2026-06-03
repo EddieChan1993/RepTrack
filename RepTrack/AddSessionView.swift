@@ -74,7 +74,7 @@ struct AddSessionView: View {
                         DatePicker("日期", selection: $entryDate, displayedComponents: .date)
                     }
 
-                    Picker("等级", selection: $selectedLevelId) {
+                    Picker("内容", selection: $selectedLevelId) {
                         ForEach(store.levels) { lv in Text(lv.id).tag(lv.id) }
                     }
 
