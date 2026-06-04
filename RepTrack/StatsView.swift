@@ -256,6 +256,10 @@ struct AllLevelsContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
+            StatCard("今年复习", "\(store.reviewedLessonCount(period: .year))",
+                     Color(red: 0.95, green: 0.50, blue: 0.10))
+            StatCard("累计复习", "\(store.reviewedLessonCount(period: .total))",
+                     Color(red: 0.20, green: 0.65, blue: 0.30))
         }
         if levelCoverages.filter({ $0.total > 0 }).isEmpty {
             ContentUnavailableView("暂无课程数据", systemImage: "folder.badge.plus",
@@ -722,6 +726,10 @@ struct LevelContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
+            StatCard("今年复习", "\(store.reviewedLessonCount(levelId: stats.level.id, period: .year))",
+                     Color(red: 0.95, green: 0.50, blue: 0.10))
+            StatCard("累计复习", "\(store.reviewedLessonCount(levelId: stats.level.id, period: .total))",
+                     Color(red: 0.20, green: 0.65, blue: 0.30))
         }
         if stats.totalLessons > 0 {
             HStack(alignment: .top, spacing: 14) {
@@ -956,7 +964,7 @@ struct PeriodStatCard: View {
             withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
         }
         .onHover { hovered = $0 }
-        .help("点击切换：今日 / 本周 / 本月")
+        .help("点击切换周期")
     }
 }
 
@@ -997,7 +1005,7 @@ struct PeriodCoverageCard: View {
             withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
         }
         .onHover { hovered = $0 }
-        .help("点击切换：今日 / 本周 / 本月")
+        .help("点击切换周期")
     }
 }
 

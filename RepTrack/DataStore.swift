@@ -441,6 +441,8 @@ final class DataStore {
             case .day:   return cal.isDateInToday(s.date)
             case .week:  return cal.isDate(s.date, equalTo: now, toGranularity: .weekOfYear)
             case .month: return cal.isDate(s.date, equalTo: now, toGranularity: .month)
+            case .year:  return cal.isDate(s.date, equalTo: now, toGranularity: .year)
+            case .total: return true
             }
         }
     }

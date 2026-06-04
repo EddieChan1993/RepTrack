@@ -63,19 +63,23 @@ struct FlowLayout: Layout {
 // MARK: - Stat period
 
 enum StatPeriod: String, CaseIterable {
-    case day = "日", week = "周", month = "月"
+    case day = "日", week = "周", month = "月", year = "年", total = "累计"
 
     var label: String {
         switch self {
         case .day:   return "今日"
         case .week:  return "本周"
         case .month: return "本月"
+        case .year:  return "今年"
+        case .total: return "累计"
         }
     }
 
+    /// 仅在 日/周/月 之间循环，年和累计为固定卡不参与切换
     var next: StatPeriod {
-        let all = StatPeriod.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
+        let cycling: [StatPeriod] = [.day, .week, .month]
+        guard let idx = cycling.firstIndex(of: self) else { return self }
+        return cycling[(idx + 1) % cycling.count]
     }
 }
 
