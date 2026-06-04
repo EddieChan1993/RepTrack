@@ -198,6 +198,10 @@ struct AddSessionView: View {
             if selectedLevelId.isEmpty, let first = store.levels.first {
                 selectedLevelId = first.id
             }
+            // 取消所有组件的自动聚焦状态
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
         }
     }
 
