@@ -23,10 +23,12 @@ struct AddSessionView: View {
     // ── Add mode ──────────────────────────────────────────────
     @State private var entryDate = Date()
     @State private var entries: [PendingEntry] = []
+    @State private var selectedEntryId: UUID? = nil
 
     // ── Edit mode ─────────────────────────────────────────────
     @State private var editDate = Date()
     @State private var editItems: [ReviewItem] = []
+    @State private var selectedEditItemId: UUID? = nil
     @State private var cancelHovered = false
     @State private var saveHovered = false
 
@@ -112,15 +114,48 @@ struct AddSessionView: View {
                     Section(isEditMode ? "当前记录" : "本次记录") {
                         if isEditMode {
                             ForEach(editItems) { item in
-                                EditItemRow(item: item, store: store) {
-                                    editItems.removeAll { $0.id == item.id }
-                                }
+                                EditItemRow(
+                                    item: item,
+                                    store: store,
+                                    isSelected: selectedEditItemId == item.id,
+                                    onSelect: {
+                                        selectedEditItemId = item.id
+                                        selectedLevelId = item.levelId
+                                        // 把该条记录的课时编号填入 lessonInput，芯片同步高亮
+                                        let numbers = item.lessonIds.compactMap { lid -> String? in
+                                            store.levels.first { $0.id == item.levelId }?
+                                                .lessons.first { $0.id == lid }?.number
+                                        }
+                                        lessonInput = numbers.map { paddedDisplay($0) }.joined(separator: ", ")
+                                    },
+                                    onRemove: {
+                                        if selectedEditItemId == item.id {
+                                            selectedEditItemId = nil
+                                            lessonInput = ""
+                                        }
+                                        editItems.removeAll { $0.id == item.id }
+                                    }
+                                )
                             }
                         } else {
                             ForEach(entries) { entry in
-                                PendingEntryRow(entry: entry, store: store) {
-                                    entries.removeAll { $0.id == entry.id }
-                                }
+                                PendingEntryRow(
+                                    entry: entry,
+                                    store: store,
+                                    isSelected: selectedEntryId == entry.id,
+                                    onSelect: {
+                                        selectedEntryId = entry.id
+                                        entryDate = entry.date
+                                        selectedLevelId = entry.levelId
+                                        lessonInput = entry.lessonNumbers
+                                            .map { paddedDisplay($0) }
+                                            .joined(separator: ", ")
+                                    },
+                                    onRemove: {
+                                        if selectedEntryId == entry.id { selectedEntryId = nil }
+                                        entries.removeAll { $0.id == entry.id }
+                                    }
+                                )
                             }
                         }
                     }
@@ -224,7 +259,13 @@ struct AddSessionView: View {
                 let nb = store.levels.flatMap(\.lessons).first { $0.id == b }?.number ?? b
                 return lessonNumberLess(na, nb)
             }
-            if let idx = editItems.firstIndex(where: { $0.levelId == selectedLevelId }) {
+            if let selId = selectedEditItemId,
+               let idx = editItems.firstIndex(where: { $0.id == selId }) {
+                // 选中状态：直接替换该条的课时
+                editItems[idx].levelId = selectedLevelId
+                editItems[idx].lessonIds = sorted
+                selectedEditItemId = nil
+            } else if let idx = editItems.firstIndex(where: { $0.levelId == selectedLevelId }) {
                 for lid in sorted where !editItems[idx].lessonIds.contains(lid) {
                     editItems[idx].lessonIds.append(lid)
                 }
@@ -239,9 +280,17 @@ struct AddSessionView: View {
         } else {
             // Add mode: just store raw numbers, no DataStore mutation
             let cal = Calendar.current
-            if let idx = entries.firstIndex(where: {
+            // 若当前有选中记录，直接替换该条的课时
+            if let selId = selectedEntryId,
+               let idx = entries.firstIndex(where: { $0.id == selId }) {
+                entries[idx].date = entryDate
+                entries[idx].levelId = selectedLevelId
+                entries[idx].lessonNumbers = numbers
+                selectedEntryId = nil
+            } else if let idx = entries.firstIndex(where: {
                 cal.isDate($0.date, inSameDayAs: entryDate) && $0.levelId == selectedLevelId
             }) {
+                // 同日期同等级：追加不重复的课
                 for n in numbers where !entries[idx].lessonNumbers.contains(where: { sameNumber($0, n) }) {
                     entries[idx].lessonNumbers.append(n)
                 }
@@ -401,6 +450,8 @@ private struct RemoveButton: View {
 private struct PendingEntryRow: View {
     let entry: PendingEntry
     let store: DataStore
+    var isSelected: Bool = false
+    var onSelect: (() -> Void)? = nil
     let onRemove: () -> Void
 
     private var dateLabel: String {
@@ -443,12 +494,24 @@ private struct PendingEntryRow: View {
             Spacer()
             RemoveButton { onRemove() }
         }
+        .padding(isSelected ? 6 : 0)
+        .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect?() }
+        .animation(.easeInOut(duration: 0.12), value: isSelected)
     }
 }
 
 private struct EditItemRow: View {
     let item: ReviewItem
     let store: DataStore
+    var isSelected: Bool = false
+    var onSelect: (() -> Void)? = nil
     let onRemove: () -> Void
 
     var body: some View {
@@ -477,5 +540,15 @@ private struct EditItemRow: View {
             Spacer()
             RemoveButton { onRemove() }
         }
+        .padding(isSelected ? 6 : 0)
+        .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect?() }
+        .animation(.easeInOut(duration: 0.12), value: isSelected)
     }
 }

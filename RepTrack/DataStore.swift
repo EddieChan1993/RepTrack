@@ -456,6 +456,16 @@ final class DataStore {
             .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }).count
     }
 
+    // 累计复习次数（每条记录都算，不去重）
+    func totalReviewCount(period: StatPeriod) -> Int {
+        sessions(in: period).flatMap { $0.items.flatMap(\.lessonIds) }.count
+    }
+
+    func totalReviewCount(levelId: String, period: StatPeriod) -> Int {
+        sessions(in: period)
+            .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }.count
+    }
+
     func reviewCount(for lessonId: String) -> Int {
         sessions.reduce(0) { total, s in
             total + s.items.reduce(0) { t, item in t + (item.lessonIds.contains(lessonId) ? 1 : 0) }

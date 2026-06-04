@@ -247,7 +247,7 @@ struct AllLevelsContent: View {
         HStack(spacing: 14) {
             StatCard("总课数", "\(totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
             PeriodStatCard(
-                value: store.reviewedLessonCount(period: reviewPeriod),
+                value: store.totalReviewCount(period: reviewPeriod),
                 color: Color(red: 0.00, green: 0.72, blue: 0.72),
                 period: $reviewPeriod
             )
@@ -256,9 +256,9 @@ struct AllLevelsContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
-            StatCard("今年复习", "\(store.reviewedLessonCount(period: .year))",
+            StatCard("今年复习", "\(store.totalReviewCount(period: .year))",
                      Color(red: 0.95, green: 0.50, blue: 0.10))
-            StatCard("累计复习", "\(store.reviewedLessonCount(period: .total))",
+            StatCard("累计复习", "\(store.totalReviewCount(period: .total))",
                      Color(red: 0.20, green: 0.65, blue: 0.30))
         }
         if levelCoverages.filter({ $0.total > 0 }).isEmpty {
@@ -717,7 +717,7 @@ struct LevelContent: View {
         HStack(spacing: 14) {
             StatCard("总课数", "\(stats.totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
             PeriodStatCard(
-                value: store.reviewedLessonCount(levelId: stats.level.id, period: reviewPeriod),
+                value: store.totalReviewCount(levelId: stats.level.id, period: reviewPeriod),
                 color: Color(red: 0.00, green: 0.72, blue: 0.72),
                 period: $reviewPeriod
             )
@@ -726,9 +726,9 @@ struct LevelContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
-            StatCard("今年复习", "\(store.reviewedLessonCount(levelId: stats.level.id, period: .year))",
+            StatCard("今年复习", "\(store.totalReviewCount(levelId: stats.level.id, period: .year))",
                      Color(red: 0.95, green: 0.50, blue: 0.10))
-            StatCard("累计复习", "\(store.reviewedLessonCount(levelId: stats.level.id, period: .total))",
+            StatCard("累计复习", "\(store.totalReviewCount(levelId: stats.level.id, period: .total))",
                      Color(red: 0.20, green: 0.65, blue: 0.30))
         }
         if stats.totalLessons > 0 {
@@ -758,9 +758,10 @@ struct LevelRecommendedCard: View {
     }
     private var recommendations: [LessonStat] { topRecommendations(stats.lessonStats) }
     private var unreviewed: [LessonStat] {
-        stats.lessonStats
+        Array(stats.lessonStats
             .filter { $0.reviewCount == 0 }
             .sorted { lessonNumberLess($0.lesson.number, $1.lesson.number) }
+            .prefix(4))
     }
 
     var body: some View {
