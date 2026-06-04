@@ -756,9 +756,11 @@ struct LevelRecommendedCard: View {
         guard !stats.lessonStats.isEmpty else { return 0 }
         return Double(stats.lessonStats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.lessonStats.count)
     }
-
-    private var recommendations: [LessonStat] {
-        topRecommendations(stats.lessonStats)
+    private var recommendations: [LessonStat] { topRecommendations(stats.lessonStats) }
+    private var unreviewed: [LessonStat] {
+        stats.lessonStats
+            .filter { $0.reviewCount == 0 }
+            .sorted { lessonNumberLess($0.lesson.number, $1.lesson.number) }
     }
 
     var body: some View {
@@ -774,6 +776,7 @@ struct LevelRecommendedCard: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 8) {
+                    // 等级标签 + 均次
                     HStack(spacing: 6) {
                         Text(stats.level.id)
                             .font(.caption).fontWeight(.semibold)
@@ -783,20 +786,25 @@ struct LevelRecommendedCard: View {
                         Text(String(format: "均 %.1f 次", avg))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
+
+                    // 推荐复习（已复习但频次低）
                     ForEach(recommendations) { stat in
-                        HStack(spacing: 0) {
-                            Text(stat.lesson.displayName)
-                                .font(.callout).lineLimit(1)
-                            Spacer(minLength: 8)
-                            Text("\(stat.reviewCount)")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(stat.reviewCount == 0
-                                    ? Color.orange.opacity(0.85) : Color.secondary)
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(
-                                    (stat.reviewCount == 0 ? Color.orange : Color.secondary).opacity(0.10),
-                                    in: RoundedRectangle(cornerRadius: 4)
-                                )
+                        RecommendRow(stat: stat)
+                    }
+
+                    // 未复习区块
+                    if !unreviewed.isEmpty {
+                        HStack(spacing: 4) {
+                            Rectangle().frame(height: 0.5).foregroundStyle(Color.orange.opacity(0.3))
+                            Text("未复习 \(unreviewed.count) 课")
+                                .font(.caption2).foregroundStyle(Color.orange.opacity(0.7))
+                                .fixedSize()
+                            Rectangle().frame(height: 0.5).foregroundStyle(Color.orange.opacity(0.3))
+                        }
+                        .padding(.top, 2)
+
+                        ForEach(unreviewed) { stat in
+                            RecommendRow(stat: stat)
                         }
                     }
                 }
@@ -805,6 +813,25 @@ struct LevelRecommendedCard: View {
         }
         .padding(16)
         .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct RecommendRow: View {
+    let stat: LessonStat
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(stat.lesson.displayName)
+                .font(.callout).lineLimit(1)
+            Spacer(minLength: 8)
+            Text(stat.reviewCount == 0 ? "未" : "\(stat.reviewCount)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(stat.reviewCount == 0 ? Color.orange.opacity(0.85) : Color.secondary)
+                .padding(.horizontal, 5).padding(.vertical, 2)
+                .background(
+                    (stat.reviewCount == 0 ? Color.orange : Color.secondary).opacity(0.10),
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+        }
     }
 }
 

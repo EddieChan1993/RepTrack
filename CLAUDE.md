@@ -126,6 +126,10 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - 🐛 修复：编译器类型检查超时（radarAngle、handleHover拆分子表达式）
 - 🐛 修复：新增字段导致旧数据加载失败，改用 `decodeIfPresent` 兼容
 
+### 2026-06-03 (单等级推荐卡优化)
+- 🆕 新增：单等级推荐复习卡新增「未复习」区块，显示所有从未复习的课，橙色「未」徽章标注
+- ♻️ 优化：抽取 `RecommendRow` 组件复用推荐行样式
+
 ### 2026-06-03 (统计卡片扩展)
 - 🆕 新增：StatPeriod 加入 `.year`（今年）和 `.total`（累计）
 - ♻️ 优化：`next` 循环限制在日/周/月，年和累计为固定卡不切换
