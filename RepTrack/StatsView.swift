@@ -256,8 +256,6 @@ struct AllLevelsContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
-            StatCard("今年复习", "\(store.totalReviewCount(period: .year))",
-                     Color(red: 0.95, green: 0.50, blue: 0.10))
             StatCard("累计复习", "\(store.totalReviewCount(period: .total))",
                      Color(red: 0.20, green: 0.65, blue: 0.30))
         }
@@ -726,8 +724,6 @@ struct LevelContent: View {
                 color: Color(red: 0.62, green: 0.15, blue: 0.90),
                 period: $coveragePeriod
             )
-            StatCard("今年复习", "\(store.totalReviewCount(levelId: stats.level.id, period: .year))",
-                     Color(red: 0.95, green: 0.50, blue: 0.10))
             StatCard("累计复习", "\(store.totalReviewCount(levelId: stats.level.id, period: .total))",
                      Color(red: 0.20, green: 0.65, blue: 0.30))
         }

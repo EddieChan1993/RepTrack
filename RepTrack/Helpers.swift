@@ -75,9 +75,9 @@ enum StatPeriod: String, CaseIterable {
         }
     }
 
-    /// 仅在 日/周/月 之间循环，年和累计为固定卡不参与切换
+    /// 日/周/月/年 循环切换，累计为固定卡不参与切换
     var next: StatPeriod {
-        let cycling: [StatPeriod] = [.day, .week, .month]
+        let cycling: [StatPeriod] = [.day, .week, .month, .year]
         guard let idx = cycling.firstIndex(of: self) else { return self }
         return cycling[(idx + 1) % cycling.count]
     }
