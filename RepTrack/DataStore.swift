@@ -184,6 +184,38 @@ final class DataStore {
             return html
         }
 
+        // ── 未复习课程 HTML ─────────────────────────
+        struct UnrevLevel { let id: String; let lessons: [Lesson] }
+        let unrevLevels: [UnrevLevel] = levels.compactMap { level in
+            let unrev = level.lessons.filter { reviewCount(for: $0.id) == 0 }
+                .sorted { lessonNumberLess($0.number, $1.number) }
+            return unrev.isEmpty ? nil : UnrevLevel(id: level.id, lessons: unrev)
+        }
+
+        var unrevHTML = ""
+        if unrevLevels.isEmpty {
+            unrevHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>🎉 所有课程都已复习过至少一次！</div>"
+        } else {
+            for (i, rec) in unrevLevels.enumerated() {
+                let color  = levelHexColor(rec.id)
+                let isLast = i == unrevLevels.count - 1
+                let sep    = isLast ? "" : "border-bottom:1px solid #F2F2F7;"
+                let chips  = rec.lessons.prefix(8).map {
+                    "<span style='background:#FFF3E0;color:#FF6B00;padding:3px 8px;border-radius:5px;font-size:13px;margin-right:4px;margin-bottom:4px;display:inline-block;'>\($0.displayName)</span>"
+                }.joined()
+                let more = rec.lessons.count > 8 ? "<span style='color:#AEAEB2;font-size:12px;margin-left:4px;'>+\(rec.lessons.count - 8) 课</span>" : ""
+                unrevHTML += """
+                <div style='padding:14px 20px;\(sep)'>
+                  <div style='margin-bottom:8px;'>
+                    <span style='background:\(color);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;'>\(rec.id)</span>
+                    <span style='color:#8E8E93;font-size:12px;margin-left:8px;'>共 \(rec.lessons.count) 课未复习</span>
+                  </div>
+                  <div>\(chips)\(more)</div>
+                </div>
+                """
+            }
+        }
+
         let cal = Calendar.current
         let todayHTML     = sessionListHTML(sessions.filter { cal.isDateInToday($0.date) },     emptyMsg: "今天暂无复习记录")
         let yesterdayHTML = sessionListHTML(sessions.filter { cal.isDateInYesterday($0.date) }, emptyMsg: "昨天没有复习记录")
@@ -212,6 +244,15 @@ final class DataStore {
                 <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>今日推荐复习</span>
               </div>
               \(recHTML)
+            </div>
+
+            <!-- 未复习课程 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>📋</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>未复习课程</span>
+              </div>
+              \(unrevHTML)
             </div>
 
             <!-- 今日已复习 -->
