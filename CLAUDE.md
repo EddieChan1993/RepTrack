@@ -181,6 +181,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - ♻️ 优化：AddSessionView 「等级」Picker 标签改为「内容」
 - ♻️ 优化：StatsView「各等级覆盖率」改为「各内容覆盖率」，图表 Y 轴系列名同步更新
 
+### 2026-06-05
+- 🐛 修复：未绑定文件夹的 tab（如手动添加的「听力」）现在也显示按钮，图标为 `folder.badge.plus`，点击弹选择器绑定文件夹；已绑定的 tab 保持原刷新逻辑
+
 ### 2026-06-02
 - 🐛 修复：删除等级 tab 不再级联删除历史复习记录，数据完整保留
 - ♻️ 优化：LogView `grouped` 过滤只显示有对应 tab 的 session/item，重新导入后自动恢复显示

@@ -18,7 +18,7 @@ struct StatsView: View {
 
     private var canRefresh: Bool {
         if selectedTab == "全部" { return store.levels.contains { store.sourceURL(for: $0.id) != nil } }
-        return store.sourceURL(for: selectedTab) != nil
+        return true // 单个 tab 始终显示，没有绑定文件夹时点击弹选择器
     }
 
     var body: some View {
@@ -59,6 +59,20 @@ struct StatsView: View {
                     Button {
                         guard !isRefreshing else { return }
 
+                        // 单个 tab 且没有绑定文件夹 → 弹选择器让用户绑定
+                        if selectedTab != "全部", store.sourceURL(for: selectedTab) == nil {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            panel.prompt = "选择文件夹"
+                            panel.message = "为「\(selectedTab)」选择对应的课程文件夹"
+                            if panel.runModal() == .OK, let url = panel.url {
+                                store.importLevelFolders([url])
+                            }
+                            return
+                        }
+
                         // Validate paths before refreshing
                         let levelsToCheck = selectedTab == "全部"
                             ? store.levels.map(\.id)
@@ -86,17 +100,22 @@ struct StatsView: View {
                             isRefreshing = false
                         }
                     } label: {
-                        Image(systemName: "arrow.clockwise")
+                        let hasSource = selectedTab == "全部" || store.sourceURL(for: selectedTab) != nil
+                        Image(systemName: hasSource ? "arrow.clockwise" : "folder.badge.plus")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(refreshHovered ? Color.primary : .secondary)
-                            .rotationEffect(.degrees(refreshRotation))
+                            .rotationEffect(.degrees(hasSource ? refreshRotation : 0))
                             .frame(width: 44, height: 44)
                             .background(refreshHovered ? Color.primary.opacity(0.06) : .clear)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .onHover { refreshHovered = $0 }
-                    .help(selectedTab == "全部" ? "重新扫描所有等级文件夹" : "重新扫描 \(selectedTab) 文件夹")
+                    .help(selectedTab == "全部"
+                          ? "重新扫描所有等级文件夹"
+                          : (store.sourceURL(for: selectedTab) != nil
+                             ? "重新扫描 \(selectedTab) 文件夹"
+                             : "为 \(selectedTab) 绑定课程文件夹"))
                     .alert("找不到文件夹", isPresented: $showFolderMissingAlert) {
                         Button("好") { }
                     } message: {
