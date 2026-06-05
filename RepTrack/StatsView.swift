@@ -10,11 +10,24 @@ struct StatsView: View {
     @State private var draggingId: String?
     @State private var isRefreshing = false
     @State private var refreshHovered = false
+    @State private var importHovered = false
     @State private var refreshRotation: Double = 0
     @State private var showFolderMissingAlert = false
     @State private var missingPaths: [String] = []
 
     private var tabs: [String] { ["全部"] + store.levels.map(\.id) }
+
+    private func openImportPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.message = "选择一个或多个课程等级文件夹（如 S1-EK、S2-IC、S3-IK）"
+        panel.prompt = "导入"
+        if panel.runModal() == .OK {
+            store.importLevelFolders(panel.urls)
+        }
+    }
 
     private var canRefresh: Bool {
         if selectedTab == "全部" { return store.levels.contains { store.sourceURL(for: $0.id) != nil } }
@@ -53,6 +66,21 @@ struct StatsView: View {
                     }
                     .padding(.horizontal, 16)
                 }
+
+                Divider().frame(height: 20)
+                Button {
+                    openImportPanel()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(importHovered ? Color.primary : .secondary)
+                        .frame(width: 36, height: 44)
+                        .background(importHovered ? Color.primary.opacity(0.06) : .clear)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { importHovered = $0 }
+                .help("导入新的课程等级文件夹")
 
                 if canRefresh {
                     Divider().frame(height: 20)

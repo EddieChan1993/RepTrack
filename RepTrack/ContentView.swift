@@ -19,11 +19,6 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button { openImportPanel() } label: {
-                    Label("导入课程目录", systemImage: "books.vertical")
-                }
-                .help("选择课程文件夹，自动读取等级和课程列表")
-
                 Button { showAdd = true } label: {
                     Label("添加复习", systemImage: "plus.circle.fill")
                 }
@@ -61,17 +56,7 @@ struct ContentView: View {
         .frame(minWidth: 720, minHeight: 740)
     }
 
-    private func openImportPanel() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = true
-        panel.message = "选择一个或多个课程等级文件夹（如 S1-EK、S2-IC、S3-IK）"
-        panel.prompt = "导入"
-        if panel.runModal() == .OK {
-            store.importLevelFolders(panel.urls)
-        }
-    }
+
 }
 
 // MARK: - VSplitView autosave helper
