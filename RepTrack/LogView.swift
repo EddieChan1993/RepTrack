@@ -5,6 +5,8 @@ struct LogView: View {
     @State private var editingSession: ReviewSession?
     @State private var pendingClearGroup: (key: String, ids: [UUID])?
     @State private var listRefreshID = 0
+    @State private var showAdd = false
+    @State private var addHovered = false
 
     private var grouped: [(key: String, sessions: [ReviewSession])] {
         let fmt = DateFormatter()
@@ -40,6 +42,16 @@ struct LogView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(.secondary.opacity(0.1), in: Capsule())
+                Button { showAdd = true } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(addHovered ? Color.accentColor : Color.accentColor.opacity(0.7))
+                        .scaleEffect(addHovered ? 1.12 : 1.0)
+                        .animation(.easeInOut(duration: 0.12), value: addHovered)
+                }
+                .buttonStyle(.plain)
+                .onHover { addHovered = $0 }
+                .help("添加复习记录 (⌘N)")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -81,9 +93,11 @@ struct LogView: View {
                 }
             }
         }
+        .sheet(isPresented: $showAdd) { AddSessionView() }
         .sheet(item: $editingSession) { session in
             AddSessionView(existing: session)
         }
+        .keyboardShortcut("n", modifiers: .command)
         .confirmationDialog(
             "清空 \(pendingClearGroup?.key ?? "") 的全部记录？",
             isPresented: Binding(

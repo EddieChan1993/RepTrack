@@ -3,7 +3,6 @@ import AppKit
 
 struct ContentView: View {
     @Environment(DataStore.self) private var store
-    @State private var showAdd = false
     @State private var showDataSettings = false
     @State private var showOnboarding = false
     @State private var showEmailPopover = false
@@ -19,12 +18,6 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button { showAdd = true } label: {
-                    Label("添加复习", systemImage: "plus.circle.fill")
-                }
-                .keyboardShortcut("n", modifiers: .command)
-                .help("记录今天的复习 (⌘N)")
-
                 Button {
                     emailInput = store.recipientEmail
                     showEmailPopover = true
@@ -43,7 +36,6 @@ struct ContentView: View {
                 .help("管理数据存储位置、导入或导出备份")
             }
         }
-        .sheet(isPresented: $showAdd) { AddSessionView() }
         .sheet(isPresented: $showDataSettings) {
             DataSettingsView(isOnboarding: false)
         }
