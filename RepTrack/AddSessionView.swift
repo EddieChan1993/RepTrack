@@ -171,21 +171,24 @@ struct AddSessionView: View {
                     Text(entrySummary).font(.caption).foregroundStyle(.secondary)
                 }
                 let saveDisabled = isEditMode ? editItems.isEmpty : entries.isEmpty
-                Button(isEditMode ? "保存修改" : "保存记录") { save() }
-                    .buttonStyle(.plain)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(saveDisabled ? Color.secondary : .white)
-                    .padding(.horizontal, 20).padding(.vertical, 8)
-                    .background(
-                        saveDisabled
-                            ? AnyShapeStyle(Color.secondary.opacity(0.15))
-                            : AnyShapeStyle(Color.accentColor.opacity(saveHovered ? 0.75 : 1.0)),
-                        in: RoundedRectangle(cornerRadius: 9)
-                    )
-                    .scaleEffect((!saveDisabled && saveHovered) ? 1.04 : 1.0)
-                    .animation(.easeInOut(duration: 0.12), value: saveHovered)
-                    .onHover { if !saveDisabled { saveHovered = $0 } }
-                    .disabled(saveDisabled)
+                Button { save() } label: {
+                    Text(isEditMode ? "保存修改" : "保存记录")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(saveDisabled ? Color.secondary : .white)
+                        .padding(.horizontal, 20).padding(.vertical, 8)
+                        .background(
+                            saveDisabled
+                                ? AnyShapeStyle(Color.secondary.opacity(0.15))
+                                : AnyShapeStyle(Color.accentColor.opacity(saveHovered ? 0.75 : 1.0)),
+                            in: RoundedRectangle(cornerRadius: 9)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(.plain)
+                .scaleEffect((!saveDisabled && saveHovered) ? 1.04 : 1.0)
+                .animation(.easeInOut(duration: 0.12), value: saveHovered)
+                .onHover { if !saveDisabled { saveHovered = $0 } }
+                .disabled(saveDisabled)
             }
             .padding(.horizontal, 20).padding(.vertical, 14)
         }

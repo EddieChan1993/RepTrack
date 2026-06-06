@@ -158,6 +158,7 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - ♻️ 优化：保存按钮改为 ✕ 关闭图标，关闭时自动保存
 
 ### 2026-06-06
+- 🐛 修复：「保存修改/保存记录」按钮将 padding/background/contentShape 移入 label 内部，整个圆角区域均可点击
 - ♻️ 优化：「添加复习」按钮从工具栏移入「复习日志」标题栏，与「N 条记录」同行，⌘N 快捷键保留
 
 ### 2026-06-06 (本次)
