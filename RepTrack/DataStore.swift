@@ -216,43 +216,54 @@ final class DataStore {
             }
         }
 
-        // ── 最近复习的5个内容 HTML ───────────────────
-        struct RecentLesson { let levelId: String; let lesson: Lesson; let count: Int; let last: Date }
-        var recentItems: [RecentLesson] = []
-        for level in levels {
-            for lesson in level.lessons {
-                guard let last = lastReviewed(lessonId: lesson.id) else { continue }
-                recentItems.append(RecentLesson(levelId: level.id, lesson: lesson,
-                                                count: reviewCount(for: lesson.id), last: last))
-            }
-        }
-        recentItems.sort { $0.last > $1.last }
-        let recentTop = Array(recentItems.prefix(5))
+        // ── 最近复习的5个内容 HTML（按等级分组，每个等级各取最近5条）────
+        struct RecentLesson { let lesson: Lesson; let count: Int; let last: Date }
 
         let recentRelFmt = RelativeDateTimeFormatter()
         recentRelFmt.locale = Locale(identifier: "zh_CN")
         recentRelFmt.unitsStyle = .short
 
         var recentHTML = ""
-        if recentTop.isEmpty {
+        let recentLevels: [(levelId: String, items: [RecentLesson])] = levels.compactMap { level in
+            let items: [RecentLesson] = level.lessons.compactMap { lesson in
+                guard let last = lastReviewed(lessonId: lesson.id) else { return nil }
+                return RecentLesson(lesson: lesson, count: reviewCount(for: lesson.id), last: last)
+            }
+            .sorted { $0.last > $1.last }
+            .prefix(5)
+            .map { $0 }
+            return items.isEmpty ? nil : (levelId: level.id, items: items)
+        }
+
+        if recentLevels.isEmpty {
             recentHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>暂无复习记录</div>"
         } else {
-            var rows = ""
-            for (i, item) in recentTop.enumerated() {
-                let color   = levelHexColor(item.levelId)
-                let (bg, fg) = countBadgeStyle(item.count)
-                let relTime = recentRelFmt.localizedString(for: item.last, relativeTo: Date())
-                let sep     = i < recentTop.count - 1 ? "border-bottom:1px solid #F2F2F7;" : ""
-                rows += """
-                <div style='padding:10px 20px;\(sep)display:flex;align-items:center;gap:10px;'>
-                  <span style='background:\(color);color:#fff;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:700;white-space:nowrap;'>\(item.levelId)</span>
-                  <span style='font-size:14px;color:#1C1C1E;flex:1;'>\(item.lesson.displayName)</span>
-                  <span style='background:\(bg);color:\(fg);padding:3px 8px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;'>\(item.count)次</span>
-                  <span style='color:#AEAEB2;font-size:12px;white-space:nowrap;'>\(relTime)</span>
+            for (li, group) in recentLevels.enumerated() {
+                let color  = levelHexColor(group.levelId)
+                let isLast = li == recentLevels.count - 1
+                let groupSep = isLast ? "" : "border-bottom:2px solid #F2F2F7;"
+                var rows = ""
+                for (i, item) in group.items.enumerated() {
+                    let (bg, fg) = countBadgeStyle(item.count)
+                    let relTime  = recentRelFmt.localizedString(for: item.last, relativeTo: Date())
+                    let rowSep   = i < group.items.count - 1 ? "border-bottom:1px solid #F2F2F7;" : ""
+                    rows += """
+                    <div style='padding:9px 20px;\(rowSep)display:flex;align-items:center;gap:10px;'>
+                      <span style='font-size:14px;color:#1C1C1E;flex:1;'>\(item.lesson.displayName)</span>
+                      <span style='background:\(bg);color:\(fg);padding:3px 8px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;'>\(item.count)次</span>
+                      <span style='color:#AEAEB2;font-size:12px;white-space:nowrap;'>\(relTime)</span>
+                    </div>
+                    """
+                }
+                recentHTML += """
+                <div style='padding:0;\(groupSep)'>
+                  <div style='padding:10px 20px 6px;'>
+                    <span style='background:\(color);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;'>\(group.levelId)</span>
+                  </div>
+                  \(rows)
                 </div>
                 """
             }
-            recentHTML = rows
         }
 
         let cal = Calendar.current
