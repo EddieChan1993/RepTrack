@@ -28,16 +28,20 @@ struct SMTPSettingsView: View {
                         .foregroundStyle(.red.opacity(0.8))
                         .padding(.horizontal, 10).padding(.vertical, 4)
                         .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                        .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
                 Button {
                     saveConfig()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(Color.secondary.opacity(0.5))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
             }
             .padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 16)
 
@@ -56,6 +60,7 @@ struct SMTPSettingsView: View {
                                      ("Outlook",SMTPConfig.outlookPreset)], id: \.0) { name, preset in
                                 Button(name) { applyPreset(preset) }
                                     .buttonStyle(.bordered).controlSize(.small)
+                                    .focusable(false)
                             }
                         }
                     }
@@ -100,7 +105,7 @@ struct SMTPSettingsView: View {
             }
 
         }
-        .frame(width: 460)
+        .frame(width: 460, height: 360)
         .onAppear {
             loadConfig()
             // 清掉自动聚焦，避免任何输入框高亮选中
