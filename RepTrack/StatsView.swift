@@ -667,6 +667,12 @@ struct RecommendedLessonsCard: View {
         let lessons: [LessonStat]
     }
 
+    private struct RecentItem: Identifiable {
+        let id: String
+        let levelId: String
+        let stat: LessonStat
+    }
+
     private var recommendations: [LevelRec] {
         store.levels.compactMap { level in
             guard !level.lessons.isEmpty else { return nil }
@@ -680,6 +686,22 @@ struct RecommendedLessonsCard: View {
             let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
             return LevelRec(level: level, avg: avg, lessons: topRecommendations(stats))
         }
+    }
+
+    private var recentlyReviewed: [RecentItem] {
+        var items: [RecentItem] = []
+        for level in store.levels {
+            for lesson in level.lessons {
+                guard let last = store.lastReviewed(lessonId: lesson.id) else { continue }
+                let stat = LessonStat(lesson: lesson,
+                                      reviewCount: store.reviewCount(for: lesson.id),
+                                      lastReviewed: last)
+                items.append(RecentItem(id: lesson.id, levelId: level.id, stat: stat))
+            }
+        }
+        return items
+            .sorted { ($0.stat.lastReviewed ?? .distantPast) > ($1.stat.lastReviewed ?? .distantPast) }
+            .prefix(5).map { $0 }
     }
 
     var body: some View {
@@ -730,6 +752,37 @@ struct RecommendedLessonsCard: View {
                                                 in: RoundedRectangle(cornerRadius: 4)
                                             )
                                     }
+                                }
+                            }
+                        }
+
+                        if !recentlyReviewed.isEmpty {
+                            HStack(spacing: 4) {
+                                Rectangle().frame(height: 0.5).foregroundStyle(Color.accentColor.opacity(0.3))
+                                Text("最近复习")
+                                    .font(.caption2).foregroundStyle(Color.accentColor.opacity(0.7))
+                                    .fixedSize()
+                                Rectangle().frame(height: 0.5).foregroundStyle(Color.accentColor.opacity(0.3))
+                            }
+                            .padding(.top, 2)
+
+                            ForEach(recentlyReviewed) { item in
+                                HStack(spacing: 0) {
+                                    Text(item.levelId)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 4).padding(.vertical, 1)
+                                        .background(levelColor(item.levelId), in: RoundedRectangle(cornerRadius: 3))
+                                        .padding(.trailing, 6)
+                                    Text(item.stat.lesson.displayName)
+                                        .font(.callout).lineLimit(1)
+                                    Spacer(minLength: 8)
+                                    Text("\(item.stat.reviewCount)")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(Color.secondary)
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(Color.secondary.opacity(0.10),
+                                                    in: RoundedRectangle(cornerRadius: 4))
                                 }
                             }
                         }
@@ -806,6 +859,12 @@ struct LevelRecommendedCard: View {
             .sorted { lessonNumberLess($0.lesson.number, $1.lesson.number) }
             .prefix(4))
     }
+    private var recentlyReviewed: [LessonStat] {
+        Array(stats.lessonStats
+            .filter { $0.lastReviewed != nil }
+            .sorted { ($0.lastReviewed ?? .distantPast) > ($1.lastReviewed ?? .distantPast) }
+            .prefix(5))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -848,6 +907,22 @@ struct LevelRecommendedCard: View {
                         .padding(.top, 2)
 
                         ForEach(unreviewed) { stat in
+                            RecommendRow(stat: stat)
+                        }
+                    }
+
+                    // 最近复习区块
+                    if !recentlyReviewed.isEmpty {
+                        HStack(spacing: 4) {
+                            Rectangle().frame(height: 0.5).foregroundStyle(Color.accentColor.opacity(0.3))
+                            Text("最近复习")
+                                .font(.caption2).foregroundStyle(Color.accentColor.opacity(0.7))
+                                .fixedSize()
+                            Rectangle().frame(height: 0.5).foregroundStyle(Color.accentColor.opacity(0.3))
+                        }
+                        .padding(.top, 2)
+
+                        ForEach(recentlyReviewed) { stat in
                             RecommendRow(stat: stat)
                         }
                     }

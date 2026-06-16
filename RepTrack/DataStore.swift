@@ -216,6 +216,45 @@ final class DataStore {
             }
         }
 
+        // ── 最近复习的5个内容 HTML ───────────────────
+        struct RecentLesson { let levelId: String; let lesson: Lesson; let count: Int; let last: Date }
+        var recentItems: [RecentLesson] = []
+        for level in levels {
+            for lesson in level.lessons {
+                guard let last = lastReviewed(lessonId: lesson.id) else { continue }
+                recentItems.append(RecentLesson(levelId: level.id, lesson: lesson,
+                                                count: reviewCount(for: lesson.id), last: last))
+            }
+        }
+        recentItems.sort { $0.last > $1.last }
+        let recentTop = Array(recentItems.prefix(5))
+
+        let recentRelFmt = RelativeDateTimeFormatter()
+        recentRelFmt.locale = Locale(identifier: "zh_CN")
+        recentRelFmt.unitsStyle = .short
+
+        var recentHTML = ""
+        if recentTop.isEmpty {
+            recentHTML = "<div style='padding:20px;text-align:center;color:#8E8E93;font-size:14px;'>暂无复习记录</div>"
+        } else {
+            var rows = ""
+            for (i, item) in recentTop.enumerated() {
+                let color   = levelHexColor(item.levelId)
+                let (bg, fg) = countBadgeStyle(item.count)
+                let relTime = recentRelFmt.localizedString(for: item.last, relativeTo: Date())
+                let sep     = i < recentTop.count - 1 ? "border-bottom:1px solid #F2F2F7;" : ""
+                rows += """
+                <div style='padding:10px 20px;\(sep)display:flex;align-items:center;gap:10px;'>
+                  <span style='background:\(color);color:#fff;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:700;white-space:nowrap;'>\(item.levelId)</span>
+                  <span style='font-size:14px;color:#1C1C1E;flex:1;'>\(item.lesson.displayName)</span>
+                  <span style='background:\(bg);color:\(fg);padding:3px 8px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;'>\(item.count)次</span>
+                  <span style='color:#AEAEB2;font-size:12px;white-space:nowrap;'>\(relTime)</span>
+                </div>
+                """
+            }
+            recentHTML = rows
+        }
+
         let cal = Calendar.current
         let todayHTML     = sessionListHTML(sessions.filter { cal.isDateInToday($0.date) },     emptyMsg: "今天暂无复习记录")
         let yesterdayHTML = sessionListHTML(sessions.filter { cal.isDateInYesterday($0.date) }, emptyMsg: "昨天没有复习记录")
@@ -262,6 +301,15 @@ final class DataStore {
                 <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>今日已复习内容</span>
               </div>
               \(todayHTML)
+            </div>
+
+            <!-- 最近复习的5个内容 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>🕐</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>最近复习的5个内容</span>
+              </div>
+              \(recentHTML)
             </div>
 
             <!-- 昨天复习 -->
