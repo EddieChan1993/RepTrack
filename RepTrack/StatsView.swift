@@ -335,6 +335,8 @@ struct CoverageChartCard: View {
     @State private var hoveredId: String?
     @State private var progress: CGFloat = 0
     @State private var showingInfo = false
+    @State private var cardTab = 1   // 0=雷达图 1=热力图
+    @State private var tabHovered: Int? = nil
 
     private var chartHeight: CGFloat { paneHeight > 0 ? max(150, paneHeight - 214) : 280 }
     private var hoveredItem: LevelCoverage? { coverages.first { $0.id == hoveredId } }
@@ -343,29 +345,60 @@ struct CoverageChartCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("综合实力").font(.headline)
-                Button {
-                    showingInfo.toggle()
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showingInfo, arrowEdge: .bottom) {
-                    RadarInfoPopover(coverages: coverages)
+                Text(cardTab == 0 ? "综合实力" : "活跃记录")
+                    .font(.headline)
+                    .animation(.easeInOut(duration: 0.15), value: cardTab)
+                if cardTab == 0 {
+                    Button {
+                        showingInfo.toggle()
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingInfo, arrowEdge: .bottom) {
+                        RadarInfoPopover(coverages: coverages)
+                    }
                 }
                 Spacer()
-                if let lv = hoveredItem {
+                if cardTab == 0, let lv = hoveredItem {
                     CoverageTooltip(lv: lv)
                         .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
+                }
+                // Tab 切换：雷达图 / 热力图
+                HStack(spacing: 2) {
+                    ForEach([(0, "chart.xyaxis.line"), (1, "square.grid.3x3.fill")], id: \.0) { idx, icon in
+                        let isSelected = cardTab == idx
+                        let isHovered  = tabHovered == idx
+                        Button {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) { cardTab = idx }
+                        } label: {
+                            Image(systemName: icon)
+                                .font(.system(size: 11))
+                                .foregroundStyle(isSelected ? Color.primary : (isHovered ? Color.primary.opacity(0.7) : Color.secondary.opacity(0.4)))
+                                .frame(width: 26, height: 22)
+                                .background(isSelected ? Color.primary.opacity(0.12) : (isHovered ? Color.primary.opacity(0.06) : Color.clear))
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                .scaleEffect(isHovered && !isSelected ? 1.08 : 1.0)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { tabHovered = $0 ? idx : nil }
+                        .animation(.easeInOut(duration: 0.1), value: isHovered)
+                    }
                 }
             }
             .frame(height: 28)
             .animation(.easeInOut(duration: 0.12), value: hoveredId)
 
-            GeometryReader { geo in radarContent(in: geo.size) }
-                .frame(height: chartHeight)
+            if cardTab == 0 {
+                GeometryReader { geo in radarContent(in: geo.size) }
+                    .frame(height: chartHeight)
+            } else {
+                ActivityHeatmap()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: chartHeight)
+            }
         }
         .padding(16)
         .background(.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
@@ -1177,5 +1210,225 @@ struct StatCard: View {
                 RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
             }
         )
+    }
+}
+
+// MARK: - ReviewStatsCard
+
+private struct ReviewStatsCard: View {
+    @Environment(DataStore.self) private var store
+    @Binding var statsTab: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            briefGrid
+        }
+        .padding(14)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 14).fill(Color(NSColor.controlBackgroundColor))
+                RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.07), lineWidth: 1)
+            }
+        )
+    }
+
+    // MARK: 活动简介 — 4 格数据
+    private var briefGrid: some View {
+        let sessions   = store.sessions
+        let totalDays  = Set(sessions.map { Calendar.current.startOfDay(for: $0.date) }).count
+        let totalItems = sessions.reduce(0) { $0 + $1.items.reduce(0) { $0 + $1.lessonIds.count } }
+        let (curStreak, _) = streakStats()
+
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
+            statCell(icon: "calendar.badge.checkmark", value: "\(sessions.count)", label: "总复习次数", color: .blue)
+            statCell(icon: "sun.max.fill",             value: "\(totalDays)",      label: "活跃天数",  color: .orange)
+            statCell(icon: "books.vertical.fill",      value: "\(totalItems)",     label: "累计课时",  color: .purple)
+            statCell(icon: "flame.fill",               value: "\(curStreak)天",    label: "当前连续",  color: .red)
+        }
+    }
+
+    private func statCell(icon: String, value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13)).foregroundStyle(color)
+                .frame(width: 26, height: 26).background(color.opacity(0.12)).clipShape(Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+                Text(label).font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func streakStats() -> (current: Int, longest: Int) {
+        let cal  = Calendar.current
+        let days = Set(store.sessions.map { cal.startOfDay(for: $0.date) }).sorted(by: >)
+        guard !days.isEmpty else { return (0, 0) }
+        var current = 0
+        var prev = cal.startOfDay(for: Date())
+        for day in days {
+            if (cal.dateComponents([.day], from: day, to: prev).day ?? 99) <= 1 { current += 1; prev = day }
+            else { break }
+        }
+        let sorted = days.sorted()
+        var longest = 1, run = 1
+        for i in 1..<sorted.count {
+            if cal.dateComponents([.day], from: sorted[i-1], to: sorted[i]).day == 1 { run += 1; longest = max(longest, run) }
+            else { run = 1 }
+        }
+        return (current, max(longest, current))
+    }
+}
+
+// MARK: - Activity Heatmap (综合实力 tab)
+
+private struct ActivityHeatmap: View {
+    @Environment(DataStore.self) private var store
+
+    private static let weeks   = 26
+    private static let rows    = 7
+    private static let gap: CGFloat = 3
+    private static let labelH: CGFloat = 18
+
+    @State private var hoveredDay: Date? = nil
+    @State private var hoveredPos: CGPoint = .zero
+
+    private var dailyCounts: [Date: Int] {
+        let cal = Calendar.current
+        var counts: [Date: Int] = [:]
+        for s in store.sessions {
+            let day = cal.startOfDay(for: s.date)
+            counts[day, default: 0] += s.items.reduce(0) { $0 + $1.lessonIds.count }
+        }
+        return counts
+    }
+
+    private var columns: [[Date]] {
+        let cal   = Calendar.current
+        var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        comps.weekday = 2
+        let startOfThisWeek = cal.date(from: comps)!
+        let gridStart = cal.date(byAdding: .weekOfYear, value: -(Self.weeks - 1), to: startOfThisWeek)!
+        let today = cal.startOfDay(for: Date())
+        var cols: [[Date]] = []
+        var weekStart = gridStart
+        for _ in 0..<Self.weeks {
+            var week: [Date] = []
+            for d in 0..<7 {
+                let day = cal.date(byAdding: .day, value: d, to: weekStart)!
+                week.append(day <= today ? day : Date.distantFuture)
+            }
+            cols.append(week)
+            weekStart = cal.date(byAdding: .weekOfYear, value: 1, to: weekStart)!
+        }
+        return cols
+    }
+
+    private func cellColor(for day: Date, counts: [Date: Int]) -> Color {
+        guard day != .distantFuture else { return .clear }
+        let n = counts[day] ?? 0
+        if n == 0 { return Color.primary.opacity(0.08) }
+        let intensity = min(Double(n) / 8.0, 1.0)
+        return Color.accentColor.opacity(0.25 + intensity * 0.75)
+    }
+
+    private func monthLabels(step: CGFloat) -> [(colIndex: Int, label: String)] {
+        var result: [(Int, String)] = []
+        let cal = Calendar.current
+        let fmt = DateFormatter(); fmt.dateFormat = "MMM"
+        var lastMonth = -1
+        for (i, col) in columns.enumerated() {
+            let day = col.first { $0 != .distantFuture } ?? .distantFuture
+            guard day != .distantFuture else { continue }
+            let m = cal.component(.month, from: day)
+            if m != lastMonth { result.append((i, fmt.string(from: day))); lastMonth = m }
+        }
+        return result
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let totalGapW = Self.gap * CGFloat(Self.weeks - 1)
+            let totalGapH = Self.gap * CGFloat(Self.rows - 1)
+            let gridH     = geo.size.height - Self.labelH - Self.gap
+            let cellW     = (geo.size.width  - totalGapW) / CGFloat(Self.weeks)
+            let cellH     = max(4, (gridH - totalGapH) / CGFloat(Self.rows))
+            let cell      = min(cellW, cellH)   // 保持正方形
+            let step      = cell + Self.gap
+            let counts    = dailyCounts
+
+            VStack(alignment: .leading, spacing: Self.gap) {
+                // 月份标签行
+                ZStack(alignment: .topLeading) {
+                    Color.clear.frame(height: Self.labelH)
+                    ForEach(monthLabels(step: step), id: \.colIndex) { item in
+                        Text(item.label)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .offset(x: CGFloat(item.colIndex) * step)
+                    }
+                }
+
+                // 热力格
+                HStack(alignment: .top, spacing: Self.gap) {
+                    ForEach(columns.indices, id: \.self) { ci in
+                        VStack(spacing: Self.gap) {
+                            ForEach(0..<7, id: \.self) { ri in
+                                let day = columns[ci][ri]
+                                RoundedRectangle(cornerRadius: max(2, cell * 0.18))
+                                    .fill(cellColor(for: day, counts: counts))
+                                    .frame(width: cell, height: cell)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: max(2, cell * 0.18))
+                                            .stroke(hoveredDay == day && day != .distantFuture
+                                                    ? Color.primary.opacity(0.5) : Color.clear,
+                                                    lineWidth: 1)
+                                    )
+                                    .onHover { inside in
+                                        hoveredDay = (inside && day != .distantFuture) ? day : nil
+                                    }
+                            }
+                        }
+                    }
+                }
+                .onContinuousHover { phase in
+                    if case .active(let loc) = phase { hoveredPos = loc }
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let day = hoveredDay {
+                    let fmt      = DateFormatter()
+                    let _unused  = { fmt.dateFormat = "MMM d" }()
+                    HeatmapTooltip(label: fmt.string(from: day))
+                        .offset(x: hoveredPos.x + 10, y: (hoveredPos.y - 24).clamped(to: 0...200))
+                        .allowsHitTesting(false)
+                        .animation(.easeInOut(duration: 0.1), value: hoveredDay)
+                }
+            }
+        }
+    }
+}
+
+private struct HeatmapTooltip: View {
+    let label: String
+    var body: some View {
+        Text(label)
+            .font(.system(size: 11))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color(NSColor.windowBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.12), lineWidth: 1))
+            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+    }
+}
+
+extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
