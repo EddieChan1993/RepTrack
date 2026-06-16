@@ -1290,13 +1290,22 @@ private struct ReviewStatsCard: View {
 private struct ActivityHeatmap: View {
     @Environment(DataStore.self) private var store
 
-    private static let weeks   = 26
-    private static let rows    = 7
-    private static let gap: CGFloat = 3
-    private static let labelH: CGFloat = 18
+    private static let weeks    = 26
+    private static let rows     = 7
+    private static let gap: CGFloat  = 3
+    private static let labelH: CGFloat  = 18  // 月份行高
+    private static let legendH: CGFloat = 20  // 图例行高
+    private static let weekLabelW: CGFloat = 26 // 星期列宽
+    // 只在第 1（Mon）、3（Wed）、5（Fri）行显示星期标签（0-indexed）
+    private static let weekLabels: [Int: String] = [1: "Mon", 3: "Wed", 5: "Fri"]
 
     @State private var hoveredDay: Date? = nil
     @State private var hoveredPos: CGPoint = .zero
+
+    private func tooltipLabel(for day: Date) -> String {
+        let fmt = DateFormatter(); fmt.dateFormat = "MMM d"
+        return fmt.string(from: day)
+    }
 
     private var dailyCounts: [Date: Int] {
         let cal = Calendar.current
@@ -1311,7 +1320,7 @@ private struct ActivityHeatmap: View {
     private var columns: [[Date]] {
         let cal   = Calendar.current
         var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
-        comps.weekday = 2
+        comps.weekday = 2   // 周一起
         let startOfThisWeek = cal.date(from: comps)!
         let gridStart = cal.date(byAdding: .weekOfYear, value: -(Self.weeks - 1), to: startOfThisWeek)!
         let today = cal.startOfDay(for: Date())
@@ -1353,59 +1362,93 @@ private struct ActivityHeatmap: View {
 
     var body: some View {
         GeometryReader { geo in
+            let wlw      = Self.weekLabelW
+            let gridW    = geo.size.width - wlw
             let totalGapW = Self.gap * CGFloat(Self.weeks - 1)
             let totalGapH = Self.gap * CGFloat(Self.rows - 1)
-            let gridH     = geo.size.height - Self.labelH - Self.gap
-            let cellW     = (geo.size.width  - totalGapW) / CGFloat(Self.weeks)
-            let cellH     = max(4, (gridH - totalGapH) / CGFloat(Self.rows))
-            let cell      = min(cellW, cellH)   // 保持正方形
-            let step      = cell + Self.gap
-            let counts    = dailyCounts
+            let gridH    = geo.size.height - Self.labelH - Self.legendH - Self.gap * 2
+            let cellW    = (gridW - totalGapW) / CGFloat(Self.weeks)
+            let cellH    = max(4, (gridH - totalGapH) / CGFloat(Self.rows))
+            let cell     = min(cellW, cellH)
+            let step     = cell + Self.gap
+            let counts   = dailyCounts
 
             VStack(alignment: .leading, spacing: Self.gap) {
-                // 月份标签行
-                ZStack(alignment: .topLeading) {
-                    Color.clear.frame(height: Self.labelH)
-                    ForEach(monthLabels(step: step), id: \.colIndex) { item in
-                        Text(item.label)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .offset(x: CGFloat(item.colIndex) * step)
-                    }
-                }
 
-                // 热力格
-                HStack(alignment: .top, spacing: Self.gap) {
-                    ForEach(columns.indices, id: \.self) { ci in
-                        VStack(spacing: Self.gap) {
-                            ForEach(0..<7, id: \.self) { ri in
-                                let day = columns[ci][ri]
-                                RoundedRectangle(cornerRadius: max(2, cell * 0.18))
-                                    .fill(cellColor(for: day, counts: counts))
-                                    .frame(width: cell, height: cell)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: max(2, cell * 0.18))
-                                            .stroke(hoveredDay == day && day != .distantFuture
-                                                    ? Color.primary.opacity(0.5) : Color.clear,
-                                                    lineWidth: 1)
-                                    )
-                                    .onHover { inside in
-                                        hoveredDay = (inside && day != .distantFuture) ? day : nil
-                                    }
-                            }
+                // ── 月份标签行（左侧留出星期列宽）
+                HStack(spacing: 0) {
+                    Color.clear.frame(width: wlw, height: Self.labelH)
+                    ZStack(alignment: .topLeading) {
+                        Color.clear.frame(height: Self.labelH)
+                        ForEach(monthLabels(step: step), id: \.colIndex) { item in
+                            Text(item.label)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .offset(x: CGFloat(item.colIndex) * step)
                         }
                     }
                 }
-                .onContinuousHover { phase in
-                    if case .active(let loc) = phase { hoveredPos = loc }
+
+                // ── 星期标签 + 热力格
+                HStack(alignment: .top, spacing: 0) {
+                    // 左侧星期列
+                    VStack(alignment: .trailing, spacing: Self.gap) {
+                        ForEach(0..<7, id: \.self) { ri in
+                            Text(Self.weekLabels[ri] ?? "")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                                .frame(width: wlw - 4, height: cell, alignment: .trailing)
+                        }
+                    }
+                    .padding(.trailing, 4)
+
+                    // 热力格区域
+                    HStack(alignment: .top, spacing: Self.gap) {
+                        ForEach(columns.indices, id: \.self) { ci in
+                            VStack(spacing: Self.gap) {
+                                ForEach(0..<7, id: \.self) { ri in
+                                    let day = columns[ci][ri]
+                                    RoundedRectangle(cornerRadius: max(2, cell * 0.18))
+                                        .fill(cellColor(for: day, counts: counts))
+                                        .frame(width: cell, height: cell)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: max(2, cell * 0.18))
+                                                .stroke(hoveredDay == day && day != .distantFuture
+                                                        ? Color.primary.opacity(0.5) : Color.clear,
+                                                        lineWidth: 1)
+                                        )
+                                        .onHover { inside in
+                                            hoveredDay = (inside && day != .distantFuture) ? day : nil
+                                        }
+                                }
+                            }
+                        }
+                    }
+                    .onContinuousHover { phase in
+                        if case .active(let loc) = phase { hoveredPos = loc }
+                    }
                 }
+
+                // ── 图例：Less ●●●●● More
+                HStack(spacing: 4) {
+                    Spacer()
+                    Text("Less").font(.system(size: 9)).foregroundStyle(.secondary)
+                    ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { lvl in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(lvl == 0
+                                  ? Color.primary.opacity(0.08)
+                                  : Color.accentColor.opacity(0.25 + lvl * 0.75))
+                            .frame(width: cell, height: cell)
+                    }
+                    Text("More").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
+                .frame(height: Self.legendH)
             }
             .overlay(alignment: .topLeading) {
                 if let day = hoveredDay {
-                    let fmt      = DateFormatter()
-                    let _unused  = { fmt.dateFormat = "MMM d" }()
-                    HeatmapTooltip(label: fmt.string(from: day))
-                        .offset(x: hoveredPos.x + 10, y: (hoveredPos.y - 24).clamped(to: 0...200))
+                    HeatmapTooltip(label: tooltipLabel(for: day))
+                        .offset(x: wlw + hoveredPos.x + 10,
+                                y: (hoveredPos.y + Self.labelH - 24).clamped(to: 0...200))
                         .allowsHitTesting(false)
                         .animation(.easeInOut(duration: 0.1), value: hoveredDay)
                 }
