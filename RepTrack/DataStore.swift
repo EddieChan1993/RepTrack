@@ -314,22 +314,22 @@ final class DataStore {
               \(todayHTML)
             </div>
 
-            <!-- 最近复习的5个内容 -->
-            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
-              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
-                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>🕐</span>
-                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>最近复习的5个内容</span>
-              </div>
-              \(recentHTML)
-            </div>
-
             <!-- 昨天复习 -->
-            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
               <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
                 <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>📅</span>
                 <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>昨天复习内容</span>
               </div>
               \(yesterdayHTML)
+            </div>
+
+            <!-- 最近复习的5个内容 -->
+            <div style='background:#FFFFFF;border-radius:16px;overflow:hidden;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,0.07);'>
+              <div style='padding:15px 20px;border-bottom:1px solid #F2F2F7;'>
+                <span style='font-size:18px;vertical-align:middle;margin-right:8px;'>🕐</span>
+                <span style='font-size:16px;font-weight:600;color:#1C1C1E;vertical-align:middle;'>最近复习的5个内容</span>
+              </div>
+              \(recentHTML)
             </div>
 
             <!-- Footer -->

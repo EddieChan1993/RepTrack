@@ -667,12 +667,6 @@ struct RecommendedLessonsCard: View {
         let lessons: [LessonStat]
     }
 
-    private struct RecentItem: Identifiable {
-        let id: String
-        let levelId: String
-        let stat: LessonStat
-    }
-
     private var recommendations: [LevelRec] {
         store.levels.compactMap { level in
             guard !level.lessons.isEmpty else { return nil }
@@ -688,20 +682,22 @@ struct RecommendedLessonsCard: View {
         }
     }
 
-    private var recentlyReviewed: [RecentItem] {
-        var items: [RecentItem] = []
-        for level in store.levels {
-            for lesson in level.lessons {
-                guard let last = store.lastReviewed(lessonId: lesson.id) else { continue }
-                let stat = LessonStat(lesson: lesson,
-                                      reviewCount: store.reviewCount(for: lesson.id),
-                                      lastReviewed: last)
-                items.append(RecentItem(id: lesson.id, levelId: level.id, stat: stat))
+    private var recentByLevel: [LevelRec] {
+        store.levels.compactMap { level in
+            guard !level.lessons.isEmpty else { return nil }
+            let stats = level.lessons.map { lesson in
+                LessonStat(lesson: lesson,
+                           reviewCount: store.reviewCount(for: lesson.id),
+                           lastReviewed: store.lastReviewed(lessonId: lesson.id))
             }
+            let recent = Array(stats
+                .filter { $0.lastReviewed != nil }
+                .sorted { ($0.lastReviewed ?? .distantPast) > ($1.lastReviewed ?? .distantPast) }
+                .prefix(5))
+            guard !recent.isEmpty else { return nil }
+            let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
+            return LevelRec(level: level, avg: avg, lessons: recent)
         }
-        return items
-            .sorted { ($0.stat.lastReviewed ?? .distantPast) > ($1.stat.lastReviewed ?? .distantPast) }
-            .prefix(5).map { $0 }
     }
 
     var body: some View {
@@ -756,7 +752,7 @@ struct RecommendedLessonsCard: View {
                             }
                         }
 
-                        if !recentlyReviewed.isEmpty {
+                        if !recentByLevel.isEmpty {
                             HStack(spacing: 4) {
                                 Rectangle().frame(height: 0.5).foregroundStyle(Color.accentColor.opacity(0.3))
                                 Text("最近复习")
@@ -766,23 +762,28 @@ struct RecommendedLessonsCard: View {
                             }
                             .padding(.top, 2)
 
-                            ForEach(recentlyReviewed) { item in
-                                HStack(spacing: 0) {
-                                    Text(item.levelId)
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 4).padding(.vertical, 1)
-                                        .background(levelColor(item.levelId), in: RoundedRectangle(cornerRadius: 3))
-                                        .padding(.trailing, 6)
-                                    Text(item.stat.lesson.displayName)
-                                        .font(.callout).lineLimit(1)
-                                    Spacer(minLength: 8)
-                                    Text("\(item.stat.reviewCount)")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundStyle(Color.secondary)
-                                        .padding(.horizontal, 5).padding(.vertical, 2)
-                                        .background(Color.secondary.opacity(0.10),
-                                                    in: RoundedRectangle(cornerRadius: 4))
+                            ForEach(recentByLevel, id: \.level.id) { rec in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    HStack(spacing: 6) {
+                                        Text(rec.level.id)
+                                            .font(.caption).fontWeight(.semibold)
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 6).padding(.vertical, 2)
+                                            .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
+                                    }
+                                    ForEach(rec.lessons) { stat in
+                                        HStack(spacing: 0) {
+                                            Text(stat.lesson.displayName)
+                                                .font(.callout).lineLimit(1)
+                                            Spacer(minLength: 8)
+                                            Text("\(stat.reviewCount)")
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundStyle(Color.secondary)
+                                                .padding(.horizontal, 5).padding(.vertical, 2)
+                                                .background(Color.secondary.opacity(0.10),
+                                                            in: RoundedRectangle(cornerRadius: 4))
+                                        }
+                                    }
                                 }
                             }
                         }
