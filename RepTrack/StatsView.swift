@@ -1145,6 +1145,7 @@ struct PeriodStatCard: View {
             .padding(.horizontal, 14).padding(.vertical, 12)
         }
         .frame(maxWidth: .infinity, minHeight: 80)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(LinearGradient(
@@ -1203,6 +1204,7 @@ struct PeriodCoverageCard: View {
             .padding(.horizontal, 14).padding(.vertical, 12)
         }
         .frame(maxWidth: .infinity, minHeight: 80)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(LinearGradient(
@@ -1266,6 +1268,7 @@ struct StatCard: View {
                 .stroke(color.opacity(0.35), lineWidth: 1)
         )
         .shadow(color: color.opacity(0.08), radius: 4, x: 0, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
