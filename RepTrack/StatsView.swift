@@ -292,7 +292,7 @@ struct AllLevelsContent: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            StatCard("总课数", "\(totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
+            StatCard("总课数", "\(totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00), icon: "books.vertical.fill")
             PeriodStatCard(
                 value: store.totalReviewCount(period: reviewPeriod),
                 color: Color(red: 0.00, green: 0.72, blue: 0.72),
@@ -304,7 +304,7 @@ struct AllLevelsContent: View {
                 period: $coveragePeriod
             )
             StatCard("累计复习", "\(store.totalReviewCount(period: .total))",
-                     Color(red: 0.20, green: 0.65, blue: 0.30))
+                     Color(red: 0.20, green: 0.65, blue: 0.30), icon: "checkmark.seal.fill")
         }
         if levelCoverages.filter({ $0.total > 0 }).isEmpty {
             ContentUnavailableView("暂无课程数据", systemImage: "folder.badge.plus",
@@ -847,7 +847,7 @@ struct LevelContent: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            StatCard("总课数", "\(stats.totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00))
+            StatCard("总课数", "\(stats.totalLessons)", Color(red: 0.10, green: 0.48, blue: 1.00), icon: "books.vertical.fill")
             PeriodStatCard(
                 value: store.totalReviewCount(levelId: stats.level.id, period: reviewPeriod),
                 color: Color(red: 0.00, green: 0.72, blue: 0.72),
@@ -859,7 +859,7 @@ struct LevelContent: View {
                 period: $coveragePeriod
             )
             StatCard("累计复习", "\(store.totalReviewCount(levelId: stats.level.id, period: .total))",
-                     Color(red: 0.20, green: 0.65, blue: 0.30))
+                     Color(red: 0.20, green: 0.65, blue: 0.30), icon: "checkmark.seal.fill")
         }
         if stats.totalLessons > 0 {
             HStack(alignment: .top, spacing: 14) {
@@ -1116,33 +1116,51 @@ struct PeriodStatCard: View {
     @State private var hovered = false
 
     var body: some View {
-        VStack(spacing: 4) {
+        ZStack(alignment: .bottomTrailing) {
+            // 装饰性大数字
             Text("\(value)")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(color)
-                .contentTransition(.numericText())
+                .font(.system(size: 56, weight: .black, design: .rounded))
+                .foregroundStyle(color.opacity(0.08))
+                .offset(x: 8, y: 8)
+                .allowsHitTesting(false)
 
-            HStack(spacing: 4) {
-                Text("\(period.label)复习")
-                    .font(.caption).foregroundStyle(.secondary)
-                Image(systemName: "chevron.right.2")
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: "arrow.2.squarepath")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(color.opacity(0.7))
+                Spacer()
+                Text("\(value)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(color)
+                    .contentTransition(.numericText())
+                HStack(spacing: 4) {
+                    Text("\(period.label)复习")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right.2")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 12)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .frame(maxWidth: .infinity, minHeight: 80)
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(color.opacity(hovered ? 0.22 : 0.14))
-                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
-            }
+            RoundedRectangle(cornerRadius: 14)
+                .fill(LinearGradient(
+                    colors: [color.opacity(hovered ? 0.28 : 0.18), color.opacity(hovered ? 0.14 : 0.08)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(color.opacity(0.35), lineWidth: 1)
+        )
+        .shadow(color: color.opacity(hovered ? 0.18 : 0.08), radius: hovered ? 8 : 4, x: 0, y: 2)
         .scaleEffect(hovered ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.12), value: hovered)
         .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
-        }
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { period = period.next } }
         .onHover { hovered = $0 }
         .help("点击切换周期")
     }
@@ -1157,33 +1175,50 @@ struct PeriodCoverageCard: View {
     @State private var hovered = false
 
     var body: some View {
-        VStack(spacing: 4) {
+        ZStack(alignment: .bottomTrailing) {
             Text(String(format: "%.0f%%", pct * 100))
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(color)
-                .contentTransition(.numericText())
+                .font(.system(size: 56, weight: .black, design: .rounded))
+                .foregroundStyle(color.opacity(0.08))
+                .offset(x: 8, y: 8)
+                .allowsHitTesting(false)
 
-            HStack(spacing: 4) {
-                Text("\(period.label)覆盖率")
-                    .font(.caption).foregroundStyle(.secondary)
-                Image(systemName: "chevron.right.2")
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: "chart.pie.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(color.opacity(0.7))
+                Spacer()
+                Text(String(format: "%.0f%%", pct * 100))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(color)
+                    .contentTransition(.numericText())
+                HStack(spacing: 4) {
+                    Text("\(period.label)覆盖率")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right.2")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 12)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 16)
+        .frame(maxWidth: .infinity, minHeight: 80)
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(color.opacity(hovered ? 0.22 : 0.14))
-                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
-            }
+            RoundedRectangle(cornerRadius: 14)
+                .fill(LinearGradient(
+                    colors: [color.opacity(hovered ? 0.28 : 0.18), color.opacity(hovered ? 0.14 : 0.08)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(color.opacity(0.35), lineWidth: 1)
+        )
+        .shadow(color: color.opacity(hovered ? 0.18 : 0.08), radius: hovered ? 8 : 4, x: 0, y: 2)
         .scaleEffect(hovered ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.12), value: hovered)
         .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) { period = period.next }
-        }
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { period = period.next } }
         .onHover { hovered = $0 }
         .help("点击切换周期")
     }
@@ -1193,23 +1228,44 @@ struct PeriodCoverageCard: View {
 
 struct StatCard: View {
     let title: String; let value: String; let color: Color
-    init(_ title: String, _ value: String, _ color: Color) {
-        self.title = title; self.value = value; self.color = color
+    let icon: String
+    init(_ title: String, _ value: String, _ color: Color, icon: String = "number") {
+        self.title = title; self.value = value; self.color = color; self.icon = icon
     }
     var body: some View {
-        VStack(spacing: 6) {
+        ZStack(alignment: .bottomTrailing) {
             Text(value)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(color)
-            Text(title).font(.caption).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 16)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(color.opacity(0.14))
-                RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.28), lineWidth: 1)
+                .font(.system(size: 56, weight: .black, design: .rounded))
+                .foregroundStyle(color.opacity(0.08))
+                .offset(x: 8, y: 8)
+                .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(color.opacity(0.7))
+                Spacer()
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(color)
+                Text(title).font(.caption).foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+        }
+        .frame(maxWidth: .infinity, minHeight: 80)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(LinearGradient(
+                    colors: [color.opacity(0.18), color.opacity(0.08)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(color.opacity(0.35), lineWidth: 1)
+        )
+        .shadow(color: color.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 }
 
