@@ -84,18 +84,19 @@ enum StatPeriod: String, CaseIterable {
 }
 
 func levelColor(_ id: String) -> Color {
-    // Tailwind CSS 600 色阶 — 感知均匀校准，同亮度同饱和度，白字可读性一致
+    // OKLCH L=0.55 C=0.17 — 感知亮度完全一致，任意两色并排天然协调
+    // 色相以 36° 等距分布覆盖全色轮，跳过视觉混浊的黄绿区间
     let palette: [Color] = [
-        Color(red: 0.149, green: 0.388, blue: 0.922), // blue-600    #2563EB
-        Color(red: 0.086, green: 0.647, blue: 0.290), // green-600   #16A34A
-        Color(red: 0.863, green: 0.149, blue: 0.149), // red-600     #DC2626
-        Color(red: 0.576, green: 0.200, blue: 0.918), // purple-600  #9333EA
-        Color(red: 0.035, green: 0.569, blue: 0.698), // cyan-600    #0891B2
-        Color(red: 0.859, green: 0.153, blue: 0.467), // pink-600    #DB2777
-        Color(red: 0.310, green: 0.275, blue: 0.898), // indigo-600  #4F46E5
-        Color(red: 0.918, green: 0.345, blue: 0.047), // orange-600  #EA580C
-        Color(red: 0.051, green: 0.580, blue: 0.533), // teal-600    #0D9488
-        Color(red: 0.486, green: 0.227, blue: 0.929), // violet-600  #7C3AED
+        Color(red: 0.788, green: 0.196, blue: 0.196), // H=0   红      #C93232
+        Color(red: 0.761, green: 0.314, blue: 0.063), // H=30  橙      #C25010
+        Color(red: 0.639, green: 0.451, blue: 0.000), // H=60  琥珀    #A37300
+        Color(red: 0.102, green: 0.565, blue: 0.251), // H=120 翠绿    #1A9040
+        Color(red: 0.000, green: 0.565, blue: 0.416), // H=150 祖母绿  #00906A
+        Color(red: 0.000, green: 0.549, blue: 0.565), // H=180 水鸭青  #008C90
+        Color(red: 0.094, green: 0.471, blue: 0.784), // H=210 天蓝    #1878C8
+        Color(red: 0.302, green: 0.353, blue: 0.910), // H=240 靛蓝    #4D5AE8
+        Color(red: 0.502, green: 0.251, blue: 0.847), // H=270 紫罗兰  #8040D8
+        Color(red: 0.761, green: 0.125, blue: 0.502), // H=330 玫红    #C22080
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
