@@ -73,18 +73,18 @@ final class DataStore {
 
     /// 与 Helpers.swift levelColor() 使用完全相同的哈希算法 + 调色板，确保邮件颜色和 app 一致。
     private func levelHexColor(_ id: String) -> String {
-        // OKLCH L=0.65 C=0.15 — 与 Helpers.swift levelColor() 完全对应
+        // Radix UI Colors Step 9 — 与 Helpers.swift levelColor() 完全对应
         let palette = [
-            "#E04848", // H=0   红
-            "#D86820", // H=30  橙
-            "#C09000", // H=60  琥珀
-            "#28B050", // H=120 翠绿
-            "#00B080", // H=150 祖母绿
-            "#00ACAC", // H=180 水鸭青
-            "#3098E8", // H=210 天蓝
-            "#6878F0", // H=240 靛蓝
-            "#9858E8", // H=270 紫罗兰
-            "#E03898", // H=330 玫红
+            "#E5484D", // 红
+            "#F76B15", // 橙
+            "#D97706", // 琥珀
+            "#46A758", // 翠绿
+            "#12A594", // 青
+            "#00A2C7", // 天青
+            "#0090FF", // 蓝
+            "#3E63DD", // 靛
+            "#8E4EC6", // 紫
+            "#D6409F", // 洋红
         ]
         let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
         return palette[hash % palette.count]

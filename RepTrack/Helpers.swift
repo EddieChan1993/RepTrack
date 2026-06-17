@@ -84,18 +84,18 @@ enum StatPeriod: String, CaseIterable {
 }
 
 func levelColor(_ id: String) -> Color {
-    // OKLCH L=0.65 C=0.15 — 感知亮度一致提亮一档，任意两色并排天然协调
+    // Radix UI Colors Step 9 — 10种最大色差，色相覆盖全色轮，标签一眼可辨
     let palette: [Color] = [
-        Color(red: 0.878, green: 0.282, blue: 0.282), // H=0   红      #E04848
-        Color(red: 0.847, green: 0.408, blue: 0.125), // H=30  橙      #D86820
-        Color(red: 0.753, green: 0.565, blue: 0.000), // H=60  琥珀    #C09000
-        Color(red: 0.157, green: 0.690, blue: 0.314), // H=120 翠绿    #28B050
-        Color(red: 0.000, green: 0.690, blue: 0.502), // H=150 祖母绿  #00B080
-        Color(red: 0.000, green: 0.675, blue: 0.675), // H=180 水鸭青  #00ACAC
-        Color(red: 0.188, green: 0.596, blue: 0.910), // H=210 天蓝    #3098E8
-        Color(red: 0.408, green: 0.471, blue: 0.941), // H=240 靛蓝    #6878F0
-        Color(red: 0.596, green: 0.345, blue: 0.910), // H=270 紫罗兰  #9858E8
-        Color(red: 0.878, green: 0.220, blue: 0.596), // H=330 玫红    #E03898
+        Color(red: 0.898, green: 0.282, blue: 0.302), // 红      #E5484D
+        Color(red: 0.969, green: 0.420, blue: 0.082), // 橙      #F76B15
+        Color(red: 0.851, green: 0.467, blue: 0.024), // 琥珀    #D97706
+        Color(red: 0.275, green: 0.655, blue: 0.345), // 翠绿    #46A758
+        Color(red: 0.071, green: 0.647, blue: 0.580), // 青      #12A594
+        Color(red: 0.000, green: 0.635, blue: 0.784), // 天青    #00A2C7
+        Color(red: 0.000, green: 0.565, blue: 1.000), // 蓝      #0090FF
+        Color(red: 0.243, green: 0.388, blue: 0.867), // 靛      #3E63DD
+        Color(red: 0.557, green: 0.306, blue: 0.776), // 紫      #8E4EC6
+        Color(red: 0.839, green: 0.251, blue: 0.624), // 洋红    #D6409F
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
