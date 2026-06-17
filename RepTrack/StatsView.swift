@@ -1116,35 +1116,36 @@ struct PeriodStatCard: View {
     @State private var hovered = false
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // 装饰性大数字
+        VStack(alignment: .leading, spacing: 4) {
+            Image(systemName: "arrow.2.squarepath")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(color.opacity(0.7))
+            Spacer()
+            Text("\(value)")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+            HStack(spacing: 4) {
+                Text("\(period.label)复习")
+                    .font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 80)
+        .overlay(alignment: .bottomTrailing) {
             Text("\(value)")
                 .font(.system(size: 56, weight: .black, design: .rounded))
                 .foregroundStyle(color.opacity(0.08))
-                .offset(x: 8, y: 8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.horizontal, 8).padding(.bottom, 8)
                 .allowsHitTesting(false)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: "arrow.2.squarepath")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color.opacity(0.7))
-                Spacer()
-                Text("\(value)")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(color)
-                    .contentTransition(.numericText())
-                HStack(spacing: 4) {
-                    Text("\(period.label)复习")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Image(systemName: "chevron.right.2")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14).padding(.vertical, 12)
         }
-        .frame(maxWidth: .infinity, minHeight: 80)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .background(
             RoundedRectangle(cornerRadius: 14)
@@ -1176,34 +1177,36 @@ struct PeriodCoverageCard: View {
     @State private var hovered = false
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        VStack(alignment: .leading, spacing: 4) {
+            Image(systemName: "chart.pie.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(color.opacity(0.7))
+            Spacer()
+            Text(String(format: "%.0f%%", pct * 100))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+            HStack(spacing: 4) {
+                Text("\(period.label)覆盖率")
+                    .font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 80)
+        .overlay(alignment: .bottomTrailing) {
             Text(String(format: "%.0f%%", pct * 100))
                 .font(.system(size: 56, weight: .black, design: .rounded))
                 .foregroundStyle(color.opacity(0.08))
-                .offset(x: 8, y: 8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.horizontal, 8).padding(.bottom, 8)
                 .allowsHitTesting(false)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: "chart.pie.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color.opacity(0.7))
-                Spacer()
-                Text(String(format: "%.0f%%", pct * 100))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(color)
-                    .contentTransition(.numericText())
-                HStack(spacing: 4) {
-                    Text("\(period.label)覆盖率")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Image(systemName: "chevron.right.2")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(hovered ? color.opacity(0.8) : Color.secondary.opacity(0.4))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14).padding(.vertical, 12)
         }
-        .frame(maxWidth: .infinity, minHeight: 80)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .background(
             RoundedRectangle(cornerRadius: 14)
