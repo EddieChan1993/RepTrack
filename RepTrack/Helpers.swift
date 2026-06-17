@@ -84,18 +84,18 @@ enum StatPeriod: String, CaseIterable {
 }
 
 func levelColor(_ id: String) -> Color {
-    // Radix UI Colors Step 9 — 10种最大色差，色相覆盖全色轮，标签一眼可辨
+    // Radix UI Colors Step 9 — 按色相间隔 ~180° 打散，相邻索引颜色差异最大
     let palette: [Color] = [
-        Color(red: 0.898, green: 0.282, blue: 0.302), // 红      #E5484D
-        Color(red: 0.969, green: 0.420, blue: 0.082), // 橙      #F76B15
-        Color(red: 0.851, green: 0.467, blue: 0.024), // 琥珀    #D97706
-        Color(red: 0.275, green: 0.655, blue: 0.345), // 翠绿    #46A758
-        Color(red: 0.071, green: 0.647, blue: 0.580), // 青      #12A594
-        Color(red: 0.000, green: 0.635, blue: 0.784), // 天青    #00A2C7
-        Color(red: 0.000, green: 0.565, blue: 1.000), // 蓝      #0090FF
-        Color(red: 0.243, green: 0.388, blue: 0.867), // 靛      #3E63DD
-        Color(red: 0.557, green: 0.306, blue: 0.776), // 紫      #8E4EC6
-        Color(red: 0.839, green: 0.251, blue: 0.624), // 洋红    #D6409F
+        Color(red: 0.898, green: 0.282, blue: 0.302), // 红      #E5484D  (~0°)
+        Color(red: 0.000, green: 0.565, blue: 1.000), // 蓝      #0090FF  (~211°)
+        Color(red: 0.275, green: 0.655, blue: 0.345), // 翠绿    #46A758  (~135°)
+        Color(red: 0.839, green: 0.251, blue: 0.624), // 洋红    #D6409F  (~313°)
+        Color(red: 0.969, green: 0.420, blue: 0.082), // 橙      #F76B15  (~25°)
+        Color(red: 0.243, green: 0.388, blue: 0.867), // 靛      #3E63DD  (~228°)
+        Color(red: 0.071, green: 0.647, blue: 0.580), // 青      #12A594  (~170°)
+        Color(red: 0.851, green: 0.467, blue: 0.024), // 琥珀    #D97706  (~38°)
+        Color(red: 0.557, green: 0.306, blue: 0.776), // 紫      #8E4EC6  (~277°)
+        Color(red: 0.000, green: 0.635, blue: 0.784), // 天青    #00A2C7  (~192°)
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
