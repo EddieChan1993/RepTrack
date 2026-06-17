@@ -85,16 +85,16 @@ enum StatPeriod: String, CaseIterable {
 
 func levelColor(_ id: String) -> Color {
     let palette: [Color] = [
-        Color(hue: 0.08, saturation: 0.65, brightness: 0.88), // 橙
-        Color(hue: 0.38, saturation: 0.55, brightness: 0.75), // 绿
-        Color(hue: 0.60, saturation: 0.60, brightness: 0.82), // 蓝
-        Color(hue: 0.75, saturation: 0.50, brightness: 0.80), // 紫
-        Color(hue: 0.52, saturation: 0.55, brightness: 0.78), // 青
-        Color(hue: 0.95, saturation: 0.55, brightness: 0.85), // 粉红
-        Color(hue: 0.02, saturation: 0.60, brightness: 0.82), // 红
-        Color(hue: 0.62, saturation: 0.50, brightness: 0.78), // 蓝紫
-        Color(hue: 0.45, saturation: 0.50, brightness: 0.75), // 青绿
-        Color(hue: 0.88, saturation: 0.45, brightness: 0.82), // 淡紫
+        Color(hue: 0.08, saturation: 0.88, brightness: 0.98), // 亮橙
+        Color(hue: 0.55, saturation: 0.82, brightness: 0.92), // 天蓝
+        Color(hue: 0.38, saturation: 0.78, brightness: 0.80), // 翠绿
+        Color(hue: 0.78, saturation: 0.72, brightness: 0.92), // 紫罗兰
+        Color(hue: 0.50, saturation: 0.80, brightness: 0.85), // 青
+        Color(hue: 0.97, saturation: 0.75, brightness: 0.95), // 玫红
+        Color(hue: 0.02, saturation: 0.85, brightness: 0.92), // 珊瑚红
+        Color(hue: 0.65, saturation: 0.70, brightness: 0.90), // 靛蓝
+        Color(hue: 0.14, saturation: 0.85, brightness: 0.95), // 金黄
+        Color(hue: 0.88, saturation: 0.65, brightness: 0.90), // 薰衣草紫
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
