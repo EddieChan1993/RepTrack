@@ -84,17 +84,18 @@ enum StatPeriod: String, CaseIterable {
 }
 
 func levelColor(_ id: String) -> Color {
+    // Tailwind CSS 600 色阶 — 感知均匀校准，同亮度同饱和度，白字可读性一致
     let palette: [Color] = [
-        Color(red: 0.24, green: 0.55, blue: 0.96), // 宝蓝 #3D8CF5
-        Color(red: 0.13, green: 0.69, blue: 0.58), // 翠绿 #21B094
-        Color(red: 0.80, green: 0.35, blue: 0.20), // 砖红 #CC5933
-        Color(red: 0.52, green: 0.30, blue: 0.88), // 靛紫 #854DE0
-        Color(red: 0.08, green: 0.60, blue: 0.75), // 深青 #1499BF
-        Color(red: 0.88, green: 0.42, blue: 0.52), // 玫瑰 #E06B85
-        Color(red: 0.18, green: 0.50, blue: 0.35), // 墨绿 #2E8059
-        Color(red: 0.75, green: 0.48, blue: 0.10), // 琥珀 #BF7A1A
-        Color(red: 0.35, green: 0.42, blue: 0.80), // 石板蓝 #596BCC
-        Color(red: 0.70, green: 0.28, blue: 0.65), // 紫红 #B247A6
+        Color(red: 0.149, green: 0.388, blue: 0.922), // blue-600    #2563EB
+        Color(red: 0.086, green: 0.647, blue: 0.290), // green-600   #16A34A
+        Color(red: 0.863, green: 0.149, blue: 0.149), // red-600     #DC2626
+        Color(red: 0.576, green: 0.200, blue: 0.918), // purple-600  #9333EA
+        Color(red: 0.035, green: 0.569, blue: 0.698), // cyan-600    #0891B2
+        Color(red: 0.859, green: 0.153, blue: 0.467), // pink-600    #DB2777
+        Color(red: 0.310, green: 0.275, blue: 0.898), // indigo-600  #4F46E5
+        Color(red: 0.918, green: 0.345, blue: 0.047), // orange-600  #EA580C
+        Color(red: 0.051, green: 0.580, blue: 0.533), // teal-600    #0D9488
+        Color(red: 0.486, green: 0.227, blue: 0.929), // violet-600  #7C3AED
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
