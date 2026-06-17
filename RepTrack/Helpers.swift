@@ -85,16 +85,16 @@ enum StatPeriod: String, CaseIterable {
 
 func levelColor(_ id: String) -> Color {
     let palette: [Color] = [
-        Color(hue: 0.08, saturation: 0.88, brightness: 0.98), // 亮橙
-        Color(hue: 0.55, saturation: 0.82, brightness: 0.92), // 天蓝
-        Color(hue: 0.38, saturation: 0.78, brightness: 0.80), // 翠绿
-        Color(hue: 0.78, saturation: 0.72, brightness: 0.92), // 紫罗兰
-        Color(hue: 0.50, saturation: 0.80, brightness: 0.85), // 青
-        Color(hue: 0.97, saturation: 0.75, brightness: 0.95), // 玫红
-        Color(hue: 0.02, saturation: 0.85, brightness: 0.92), // 珊瑚红
-        Color(hue: 0.65, saturation: 0.70, brightness: 0.90), // 靛蓝
-        Color(hue: 0.14, saturation: 0.85, brightness: 0.95), // 金黄
-        Color(hue: 0.88, saturation: 0.65, brightness: 0.90), // 薰衣草紫
+        Color(red: 0.24, green: 0.55, blue: 0.96), // 宝蓝 #3D8CF5
+        Color(red: 0.13, green: 0.69, blue: 0.58), // 翠绿 #21B094
+        Color(red: 0.80, green: 0.35, blue: 0.20), // 砖红 #CC5933
+        Color(red: 0.52, green: 0.30, blue: 0.88), // 靛紫 #854DE0
+        Color(red: 0.08, green: 0.60, blue: 0.75), // 深青 #1499BF
+        Color(red: 0.88, green: 0.42, blue: 0.52), // 玫瑰 #E06B85
+        Color(red: 0.18, green: 0.50, blue: 0.35), // 墨绿 #2E8059
+        Color(red: 0.75, green: 0.48, blue: 0.10), // 琥珀 #BF7A1A
+        Color(red: 0.35, green: 0.42, blue: 0.80), // 石板蓝 #596BCC
+        Color(red: 0.70, green: 0.28, blue: 0.65), // 紫红 #B247A6
     ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
     return palette[hash % palette.count]
