@@ -17,7 +17,6 @@ struct DataSettingsView: View {
     @State private var backupResult: BackupResult? = nil
     @State private var showBackupList = false
     @State private var restoreConfirmURL: URL? = nil
-    @State private var showRestoreFilePicker = false
 
     enum BackupResult { case success, failure, restoreSuccess, restoreFailure }
 
@@ -156,7 +155,7 @@ struct DataSettingsView: View {
 
                                     DSButton("从文件恢复", icon: "arrow.counterclockwise",
                                              style: .secondary) {
-                                        showRestoreFilePicker = true
+                                        openRestorePanel()
                                     }
 
                                     Spacer()
@@ -198,13 +197,6 @@ struct DataSettingsView: View {
             }
         }
         .frame(width: 500)
-        // 从文件选择器恢复
-        .fileImporter(isPresented: $showRestoreFilePicker,
-                      allowedContentTypes: [.json],
-                      allowsMultipleSelection: false) { result in
-            guard case .success(let urls) = result, let url = urls.first else { return }
-            restoreConfirmURL = url
-        }
         // 恢复确认弹窗
         .confirmationDialog(
             "确认恢复备份？",
@@ -247,6 +239,20 @@ struct DataSettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             store.setStorageFolder(url)
             if isOnboarding { store.completeSetup(); dismiss() }
+        }
+    }
+
+    private func openRestorePanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.directoryURL = store.backupFolderURL
+        panel.message = "选择要恢复的备份文件"
+        panel.prompt = "恢复"
+        if panel.runModal() == .OK, let url = panel.url {
+            restoreConfirmURL = url
         }
     }
 
