@@ -115,6 +115,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-18（补充）
+- ⚡ 性能：复习日志仅渲染近一年记录（`session.date >= oneYearAgo`），统计仍全量计算，标题栏显示「N 条记录（近一年）」
+
 ### 2026-06-18
 - 🆕 新增：自动备份功能（DataStore + DataSettingsView）
   - 备份地址可自定义，默认 `~/Documents/RepTrack Backups/`
