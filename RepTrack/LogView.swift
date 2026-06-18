@@ -12,8 +12,10 @@ struct LogView: View {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy年MM月"
         let existingLevelIds = Set(store.levels.map(\.id))
-        // 只显示至少有一个 item 对应现有 tab 的 session
+        let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+        // 只显示最近一年且至少有一个 item 对应现有 tab 的 session
         let visible = store.sessions.compactMap { session -> ReviewSession? in
+            guard session.date >= oneYearAgo else { return nil }
             let filtered = session.items.filter { existingLevelIds.contains($0.levelId) }
             guard !filtered.isEmpty else { return nil }
             var copy = session
@@ -37,7 +39,7 @@ struct LogView: View {
                         .font(.headline)
                 }
                 Spacer()
-                Text("\(store.sessions.count) 条记录")
+                Text("\(grouped.flatMap(\.sessions).count) 条记录（近一年）")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 3)
