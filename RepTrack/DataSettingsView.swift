@@ -16,8 +16,10 @@ struct DataSettingsView: View {
     @State private var backupFolderURL: URL = DataStore.defaultBackupURL
     @State private var backupResult: BackupResult? = nil
     @State private var showBackupList = false
+    @State private var restoreConfirmURL: URL? = nil
+    @State private var showRestoreFilePicker = false
 
-    enum BackupResult { case success, failure }
+    enum BackupResult { case success, failure, restoreSuccess, restoreFailure }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -146,17 +148,26 @@ struct DataSettingsView: View {
                                         showBackupList.toggle()
                                     }
                                     .popover(isPresented: $showBackupList, arrowEdge: .bottom) {
-                                        BackupListPopover(backups: backups)
+                                        BackupListPopover(backups: backups) { url in
+                                            showBackupList = false
+                                            restoreConfirmURL = url
+                                        }
+                                    }
+
+                                    DSButton("从文件恢复", icon: "arrow.counterclockwise",
+                                             style: .secondary) {
+                                        showRestoreFilePicker = true
                                     }
 
                                     Spacer()
 
                                     if let result = backupResult {
-                                        Label(result == .success ? "备份成功" : "备份失败",
-                                              systemImage: result == .success
-                                                ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        let isOk = result == .success || result == .restoreSuccess
+                                        Label(result == .success ? "备份成功"
+                                              : result == .restoreSuccess ? "恢复成功" : "操作失败",
+                                              systemImage: isOk ? "checkmark.circle.fill" : "xmark.circle.fill")
                                             .font(.caption)
-                                            .foregroundStyle(result == .success ? Color.green : Color.red)
+                                            .foregroundStyle(isOk ? Color.green : Color.red)
                                             .transition(.opacity)
                                     }
 
@@ -187,6 +198,35 @@ struct DataSettingsView: View {
             }
         }
         .frame(width: 500)
+        // 从文件选择器恢复
+        .fileImporter(isPresented: $showRestoreFilePicker,
+                      allowedContentTypes: [.json],
+                      allowsMultipleSelection: false) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            restoreConfirmURL = url
+        }
+        // 恢复确认弹窗
+        .confirmationDialog(
+            "确认恢复备份？",
+            isPresented: Binding(get: { restoreConfirmURL != nil },
+                                 set: { if !$0 { restoreConfirmURL = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("恢复", role: .destructive) {
+                guard let url = restoreConfirmURL else { return }
+                let ok = store.importFromFile(url)
+                withAnimation { backupResult = ok ? .restoreSuccess : .restoreFailure }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation { backupResult = nil }
+                }
+                restoreConfirmURL = nil
+            }
+            Button("取消", role: .cancel) { restoreConfirmURL = nil }
+        } message: {
+            if let url = restoreConfirmURL {
+                Text("将用「\(url.lastPathComponent)」覆盖当前所有数据，此操作不可撤销。")
+            }
+        }
         .onAppear {
             backupEnabled   = store.backupEnabled
             backupFolderURL = store.backupFolderURL
@@ -315,6 +355,8 @@ private struct SectionCard<Content: View>: View {
 
 private struct BackupListPopover: View {
     let backups: [URL]
+    var onRestore: (URL) -> Void = { _ in }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("备份文件（最多保留 10 个）")
@@ -329,31 +371,59 @@ private struct BackupListPopover: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(backups, id: \.path) { url in
-                            HStack(spacing: 8) {
-                                Image(systemName: "doc.fill")
-                                    .foregroundStyle(.secondary).font(.caption)
-                                Text(url.lastPathComponent
-                                    .replacingOccurrences(of: "RepTrack-backup-", with: "")
-                                    .replacingOccurrences(of: ".json", with: ""))
-                                    .font(.caption).lineLimit(1)
-                                Spacer()
-                                Button {
-                                    NSWorkspace.shared.selectFile(url.path,
-                                                                  inFileViewerRootedAtPath: "")
-                                } label: {
-                                    Image(systemName: "arrow.up.right.square")
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            BackupRow(url: url, onRestore: onRestore)
                             Divider()
                         }
                     }
                 }
-                .frame(maxHeight: 240)
+                .frame(maxHeight: 260)
             }
         }
-        .frame(width: 300)
+        .frame(width: 340)
+    }
+}
+
+private struct BackupRow: View {
+    let url: URL
+    var onRestore: (URL) -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.fill")
+                .foregroundStyle(.blue.opacity(0.7)).font(.caption)
+            Text(url.lastPathComponent
+                .replacingOccurrences(of: "RepTrack-backup-", with: "")
+                .replacingOccurrences(of: ".json", with: ""))
+                .font(.caption).lineLimit(1)
+            Spacer()
+            // Finder 显示
+            Button {
+                NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+            } label: {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .opacity(hovered ? 1 : 0)
+            // 恢复按钮
+            Button {
+                onRestore(url)
+            } label: {
+                Text("恢复")
+                    .font(.system(size: 11))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(hovered ? 1 : 0.8),
+                                in: RoundedRectangle(cornerRadius: 5))
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .opacity(hovered ? 1 : 0)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(hovered ? Color.secondary.opacity(0.07) : Color.clear)
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .animation(.easeInOut(duration: 0.1), value: hovered)
     }
 }
