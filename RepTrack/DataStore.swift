@@ -23,6 +23,112 @@ final class DataStore {
     private static let smtpUserKey       = "RepTrack.smtpUser"
     private static let smtpSSLKey        = "RepTrack.smtpSSL"
 
+    // MARK: - Backup keys
+    private static let backupFolderKey  = "RepTrack.backupFolderPath"
+    private static let backupEnabledKey = "RepTrack.backupEnabled"
+    private static let backupHourKey    = "RepTrack.backupHour"
+    private static let backupMinuteKey  = "RepTrack.backupMinute"
+
+    // MARK: - Backup properties
+
+    static var defaultBackupURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("RepTrack Backups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    var backupFolderURL: URL {
+        get {
+            if let p = UserDefaults.standard.string(forKey: DataStore.backupFolderKey) {
+                return URL(fileURLWithPath: p)
+            }
+            return DataStore.defaultBackupURL
+        }
+        set { UserDefaults.standard.set(newValue.path, forKey: DataStore.backupFolderKey) }
+    }
+
+    var backupEnabled: Bool {
+        get {
+            let v = UserDefaults.standard.object(forKey: DataStore.backupEnabledKey)
+            return v == nil ? true : UserDefaults.standard.bool(forKey: DataStore.backupEnabledKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.backupEnabledKey) }
+    }
+
+    var backupHour: Int {
+        get {
+            let v = UserDefaults.standard.integer(forKey: DataStore.backupHourKey)
+            return v == 0 ? 3 : v   // 默认凌晨 3 点
+        }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.backupHourKey) }
+    }
+
+    var backupMinute: Int {
+        get { UserDefaults.standard.integer(forKey: DataStore.backupMinuteKey) }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.backupMinuteKey) }
+    }
+
+    // 列出备份目录下所有备份文件，按时间倒序
+    func listBackups() -> [URL] {
+        let fm = FileManager.default
+        let dir = backupFolderURL
+        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.creationDateKey]) else { return [] }
+        return files
+            .filter { $0.lastPathComponent.hasPrefix("RepTrack-backup-") && $0.pathExtension == "json" }
+            .sorted {
+                let d0 = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+                let d1 = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+                return d0 > d1
+            }
+    }
+
+    // 执行一次备份，保留最新 10 个，其余删除
+    @discardableResult
+    func performBackup() -> Bool {
+        let fm = FileManager.default
+        let dir = backupFolderURL
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd_HHmmss"
+        let name = "RepTrack-backup-\(fmt.string(from: Date())).json"
+        let dest = dir.appendingPathComponent(name)
+
+        guard let data = try? JSONEncoder().encode(Saved(levels: levels, sessions: sessions)) else { return false }
+        guard (try? data.write(to: dest, options: .atomic)) != nil else { return false }
+
+        // 只保留最新 10 个
+        let all = listBackups()
+        if all.count > 10 {
+            for old in all.dropFirst(10) { try? fm.removeItem(at: old) }
+        }
+        return true
+    }
+
+    private var backupTimer: Timer?
+
+    func scheduleBackupTimer() {
+        backupTimer?.invalidate()
+        guard backupEnabled else { return }
+        // 计算下一次触发时间
+        func nextFire() -> Date {
+            var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            comps.hour = backupHour
+            comps.minute = backupMinute
+            comps.second = 0
+            var fire = Calendar.current.date(from: comps) ?? Date()
+            if fire <= Date() { fire = Calendar.current.date(byAdding: .day, value: 1, to: fire) ?? fire }
+            return fire
+        }
+        let interval = nextFire().timeIntervalSinceNow
+        backupTimer = Timer.scheduledTimer(withTimeInterval: max(interval, 1), repeats: false) { [weak self] _ in
+            guard let self, self.backupEnabled else { return }
+            self.performBackup()
+            self.scheduleBackupTimer() // 重新调度明天
+        }
+    }
+
     // MARK: - Email
 
     var recipientEmail: String {
@@ -420,9 +526,13 @@ final class DataStore {
         load()
         if levels.isEmpty { levels = Self.defaultLevels() }
         startSyncTimer()
+        scheduleBackupTimer()
     }
 
-    deinit { syncTimer?.invalidate() }
+    deinit {
+        syncTimer?.invalidate()
+        backupTimer?.invalidate()
+    }
 
     // Poll every 30 s — lightweight mtime check, no kernel event machinery needed.
     private func startSyncTimer() {
