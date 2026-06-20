@@ -83,22 +83,28 @@ enum StatPeriod: String, CaseIterable {
     }
 }
 
+private let levelColorPalette: [Color] = [
+    Color(red: 0.898, green: 0.282, blue: 0.302), // 红      #E5484D  (~0°)
+    Color(red: 0.000, green: 0.565, blue: 1.000), // 蓝      #0090FF  (~211°)
+    Color(red: 0.275, green: 0.655, blue: 0.345), // 翠绿    #46A758  (~135°)
+    Color(red: 0.839, green: 0.251, blue: 0.624), // 洋红    #D6409F  (~313°)
+    Color(red: 0.969, green: 0.420, blue: 0.082), // 橙      #F76B15  (~25°)
+    Color(red: 0.243, green: 0.388, blue: 0.867), // 靛      #3E63DD  (~228°)
+    Color(red: 0.071, green: 0.647, blue: 0.580), // 青      #12A594  (~170°)
+    Color(red: 0.851, green: 0.467, blue: 0.024), // 琥珀    #D97706  (~38°)
+    Color(red: 0.557, green: 0.306, blue: 0.776), // 紫      #8E4EC6  (~277°)
+    Color(red: 0.000, green: 0.635, blue: 0.784), // 天青    #00A2C7  (~192°)
+]
+
+/// 按等级在 store 中的位置索引分配颜色，避免哈希碰撞导致相邻等级同色
+func levelColor(index: Int) -> Color {
+    levelColorPalette[abs(index) % levelColorPalette.count]
+}
+
+/// 兼容旧调用：无法取得索引时回退到哈希（仅在无 store 上下文时使用）
 func levelColor(_ id: String) -> Color {
-    // Radix UI Colors Step 9 — 按色相间隔 ~180° 打散，相邻索引颜色差异最大
-    let palette: [Color] = [
-        Color(red: 0.898, green: 0.282, blue: 0.302), // 红      #E5484D  (~0°)
-        Color(red: 0.000, green: 0.565, blue: 1.000), // 蓝      #0090FF  (~211°)
-        Color(red: 0.275, green: 0.655, blue: 0.345), // 翠绿    #46A758  (~135°)
-        Color(red: 0.839, green: 0.251, blue: 0.624), // 洋红    #D6409F  (~313°)
-        Color(red: 0.969, green: 0.420, blue: 0.082), // 橙      #F76B15  (~25°)
-        Color(red: 0.243, green: 0.388, blue: 0.867), // 靛      #3E63DD  (~228°)
-        Color(red: 0.071, green: 0.647, blue: 0.580), // 青      #12A594  (~170°)
-        Color(red: 0.851, green: 0.467, blue: 0.024), // 琥珀    #D97706  (~38°)
-        Color(red: 0.557, green: 0.306, blue: 0.776), // 紫      #8E4EC6  (~277°)
-        Color(red: 0.000, green: 0.635, blue: 0.784), // 天青    #00A2C7  (~192°)
-    ]
     let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
-    return palette[hash % palette.count]
+    return levelColorPalette[hash % levelColorPalette.count]
 }
 
 // Display-only padding: "2" → "002", "21" → "021"; never changes stored data

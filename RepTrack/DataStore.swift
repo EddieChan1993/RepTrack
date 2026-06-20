@@ -177,9 +177,8 @@ final class DataStore {
         return (subject: subject, body: buildHTML(dateLabel: todayStr))
     }
 
-    /// 与 Helpers.swift levelColor() 使用完全相同的哈希算法 + 调色板，确保邮件颜色和 app 一致。
+    /// 按等级在 levels 数组中的位置取颜色，与 Helpers.swift levelColor(index:) 对应，确保邮件颜色和 app 一致。
     private func levelHexColor(_ id: String) -> String {
-        // Radix UI Colors Step 9 — 与 Helpers.swift levelColor() 完全对应（打散顺序）
         let palette = [
             "#E5484D", // 红
             "#0090FF", // 蓝
@@ -192,8 +191,8 @@ final class DataStore {
             "#8E4EC6", // 紫
             "#00A2C7", // 天青
         ]
-        let hash = abs(id.unicodeScalars.reduce(5381) { ($0 &* 31) &+ Int($1.value) })
-        return palette[hash % palette.count]
+        let index = levels.firstIndex(where: { $0.id == id }) ?? 0
+        return palette[index % palette.count]
     }
 
     private func countBadgeStyle(_ count: Int) -> (bg: String, fg: String) {
@@ -612,6 +611,13 @@ final class DataStore {
         save()
     }
 
+    func toggleLessonDisabled(lessonId: String, levelId: String) {
+        guard let li = levels.firstIndex(where: { $0.id == levelId }),
+              let lj = levels[li].lessons.firstIndex(where: { $0.id == lessonId }) else { return }
+        levels[li].lessons[lj].isDisabled.toggle()
+        save()
+    }
+
     func deleteLesson(lessonId: String, levelId: String) {
         guard let li = levels.firstIndex(where: { $0.id == levelId }) else { return }
         levels[li].lessons.removeAll { $0.id == lessonId }
@@ -658,23 +664,34 @@ final class DataStore {
         }
     }
 
+    private var disabledLessonIds: Set<String> {
+        Set(levels.flatMap { $0.lessons.filter(\.isDisabled).map(\.id) })
+    }
+
     func reviewedLessonCount(period: StatPeriod) -> Int {
-        Set(sessions(in: period).flatMap { $0.items.flatMap(\.lessonIds) }).count
+        let disabled = disabledLessonIds
+        return Set(sessions(in: period).flatMap { $0.items.flatMap(\.lessonIds) }
+            .filter { !disabled.contains($0) }).count
     }
 
     func reviewedLessonCount(levelId: String, period: StatPeriod) -> Int {
-        Set(sessions(in: period)
-            .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }).count
+        let disabled = disabledLessonIds
+        return Set(sessions(in: period)
+            .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }
+            .filter { !disabled.contains($0) }).count
     }
 
-    // 累计复习次数（每条记录都算，不去重）
     func totalReviewCount(period: StatPeriod) -> Int {
-        sessions(in: period).flatMap { $0.items.flatMap(\.lessonIds) }.count
+        let disabled = disabledLessonIds
+        return sessions(in: period).flatMap { $0.items.flatMap(\.lessonIds) }
+            .filter { !disabled.contains($0) }.count
     }
 
     func totalReviewCount(levelId: String, period: StatPeriod) -> Int {
-        sessions(in: period)
-            .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }.count
+        let disabled = disabledLessonIds
+        return sessions(in: period)
+            .flatMap { $0.items.filter { $0.levelId == levelId }.flatMap(\.lessonIds) }
+            .filter { !disabled.contains($0) }.count
     }
 
     func reviewCount(for lessonId: String) -> Int {
@@ -712,7 +729,7 @@ final class DataStore {
     func levelStats(for levelId: String) -> LevelStats? {
         guard let level = levels.first(where: { $0.id == levelId }) else { return nil }
         let index = buildReviewIndex()
-        let stats = level.lessons.map {
+        let stats = level.lessons.filter { !$0.isDisabled }.map {
             LessonStat(lesson: $0,
                        reviewCount: index.counts[$0.id] ?? 0,
                        lastReviewed: index.lastDates[$0.id])

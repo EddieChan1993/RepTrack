@@ -8,12 +8,14 @@ struct ContentView: View {
     @State private var showEmailPopover = false
     @State private var emailInput = ""
 
+    @State private var selectedLevelTab = "全部"
+
     var body: some View {
         VSplitView {
-            StatsView()
+            StatsView(selectedTab: $selectedLevelTab)
                 .frame(minHeight: 440, maxHeight: 600)
                 .background(SplitViewAutosaver())
-            LogView()
+            LogView(defaultLevelId: selectedLevelTab == "全部" ? "" : selectedLevelTab)
                 .frame(minHeight: 200)
         }
         .toolbar {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LogView: View {
     @Environment(DataStore.self) private var store
+    let defaultLevelId: String
     @State private var editingSession: ReviewSession?
     @State private var pendingClearGroup: (key: String, ids: [UUID])?
     @State private var listRefreshID = 0
@@ -95,9 +96,9 @@ struct LogView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAdd) { AddSessionView() }
+        .sheet(isPresented: $showAdd) { AddSessionView(defaultLevelId: defaultLevelId) }
         .sheet(item: $editingSession) { session in
-            AddSessionView(existing: session)
+            AddSessionView(existing: session, defaultLevelId: defaultLevelId)
         }
         .keyboardShortcut("n", modifiers: .command)
         .confirmationDialog(
@@ -225,7 +226,7 @@ struct SessionRow: View {
                             .font(.caption).fontWeight(.semibold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(levelColor(item.levelId), in: RoundedRectangle(cornerRadius: 4))
+                            .background(levelColor(index: store.levels.firstIndex(where: { $0.id == item.levelId }) ?? 0), in: RoundedRectangle(cornerRadius: 4))
 
                         let lessons = item.lessonIds
                             .compactMap { lid in store.levels.flatMap(\.lessons).first { $0.id == lid } }

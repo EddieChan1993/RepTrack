@@ -24,10 +24,25 @@ struct Lesson: Identifiable, Codable, Hashable {
     var number: String
     var title: String
     var levelId: String
+    var isDisabled: Bool = false
 
     var displayName: String {
         let p = paddedDisplay(number)
         return title.isEmpty ? p : "\(p). \(title)"
+    }
+
+    init(id: String, number: String, title: String, levelId: String, isDisabled: Bool = false) {
+        self.id = id; self.number = number; self.title = title
+        self.levelId = levelId; self.isDisabled = isDisabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id         = try c.decode(String.self, forKey: .id)
+        number     = try c.decode(String.self, forKey: .number)
+        title      = try c.decode(String.self, forKey: .title)
+        levelId    = try c.decode(String.self, forKey: .levelId)
+        isDisabled = try c.decodeIfPresent(Bool.self, forKey: .isDisabled) ?? false
     }
 }
 

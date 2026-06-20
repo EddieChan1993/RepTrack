@@ -115,6 +115,12 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-20
+- 🐛 修复：等级标签颜色哈希碰撞问题，改为按等级在列表中的位置索引分配颜色，确保不同等级颜色不同（`levelColor(index:)`）
+- 🆕 新增：课时置灰功能（`Lesson.isDisabled`）— hover 芯片右上角浮现红色禁止图标点击置灰，置灰后显示蓝色恢复图标可一键恢复；置灰课时从统计、覆盖率、推荐全部剔除
+- 🆕 新增：添加/编辑记录时，默认选中当前所在等级 tab（通过 `ContentView.selectedLevelTab` 绑定传递）
+- 🐛 修复：首次启动 StatsView 空白（`selectedLevelTab` 初始值改为 `"全部"`）
+
 ### 2026-06-18（补充）
 - ⚡ 性能：复习日志仅渲染近一年记录（`session.date >= oneYearAgo`），统计仍全量计算，标题栏显示「N 条记录（近一年）」
 

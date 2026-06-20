@@ -15,6 +15,7 @@ A native macOS app for tracking spaced-repetition language course reviews.
 - **Review log** — Chronological list grouped by month; inline edit or delete with confirmation; auto-refreshes on app foreground
 - **Daily email reminder** — Send today's recommendations, reviewed content, and yesterday's summary via SMTP directly (no mail client needed); supports QQ / 163 / Gmail / Outlook presets; beautifully formatted HTML email
 - **Auto backup** — Schedule daily automatic backups; keep up to 10 backup files with automatic cleanup; restore from the backup list with one click or pick any file via the file picker; confirmation dialog prevents accidental overwrites
+- **Lesson disable** — Hover over a lesson chip to reveal a red disable icon in the top-right corner; click to grey it out and exclude it from all statistics and recommendations; a blue restore icon appears on disabled chips to re-enable at any time
 - **Cloud-sync friendly** — Point the data file at any folder (Nutstore, iCloud Drive, Dropbox) on first launch or via the toolbar; export/import JSON backups at any time
 
 ## Requirements

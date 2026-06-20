@@ -32,8 +32,11 @@ struct AddSessionView: View {
     @State private var cancelHovered = false
     @State private var saveHovered = false
 
-    init(existing: ReviewSession? = nil) {
+    let defaultLevelId: String
+
+    init(existing: ReviewSession? = nil, defaultLevelId: String = "") {
         self.existing = existing
+        self.defaultLevelId = defaultLevelId
     }
 
     private var isEditMode: Bool { existing != nil }
@@ -91,6 +94,7 @@ struct AddSessionView: View {
                                     LessonChip(
                                         lesson: lesson,
                                         levelId: level.id,
+                                        levelIndex: store.levels.firstIndex(where: { $0.id == level.id }) ?? 0,
                                         isSelected: isChipSelected(lesson)
                                     ) { appendChip(paddedDisplay(lesson.number)) }
                                 }
@@ -198,8 +202,12 @@ struct AddSessionView: View {
                 editDate = e.date
                 editItems = e.items
             }
-            if selectedLevelId.isEmpty, let first = store.levels.first {
-                selectedLevelId = first.id
+            if selectedLevelId.isEmpty {
+                if !defaultLevelId.isEmpty && store.levels.contains(where: { $0.id == defaultLevelId }) {
+                    selectedLevelId = defaultLevelId
+                } else if let first = store.levels.first {
+                    selectedLevelId = first.id
+                }
             }
             // 取消所有组件的自动聚焦状态
             DispatchQueue.main.async {
@@ -351,34 +359,64 @@ struct AddSessionView: View {
 // MARK: - Chip & button components
 
 private struct LessonChip: View {
+    @Environment(DataStore.self) private var store
     let lesson: Lesson
     let levelId: String
+    let levelIndex: Int
     let isSelected: Bool
     let onTap: () -> Void
     @State private var hovered = false
+    @State private var toggleHovered = false
 
     var body: some View {
-        Button { onTap() } label: {
-            Text(lesson.displayName)
-                .font(.caption)
-                .foregroundStyle(isSelected ? .white : .primary)
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(
-                    isSelected
-                        ? AnyShapeStyle(levelColor(levelId).opacity(hovered ? 0.75 : 1.0))
-                        : AnyShapeStyle(Color.secondary.opacity(hovered ? 0.22 : 0.10)),
-                    in: RoundedRectangle(cornerRadius: 6)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isSelected ? levelColor(levelId).opacity(0.4) : Color.clear, lineWidth: 1)
-                )
-                .scaleEffect(hovered ? 1.05 : 1.0)
-                .animation(.easeInOut(duration: 0.1), value: hovered)
-                .animation(.easeInOut(duration: 0.1), value: isSelected)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovered = $0 }
+        Text(lesson.displayName)
+            .font(.caption)
+            .foregroundStyle(lesson.isDisabled
+                ? Color.secondary.opacity(0.4)
+                : (isSelected ? .white : .primary))
+            .strikethrough(lesson.isDisabled, color: .secondary.opacity(0.45))
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(
+                lesson.isDisabled
+                    ? AnyShapeStyle(Color.secondary.opacity(0.07))
+                    : (isSelected
+                        ? AnyShapeStyle(levelColor(index: levelIndex).opacity(hovered ? 0.75 : 1.0))
+                        : AnyShapeStyle(Color.secondary.opacity(hovered ? 0.18 : 0.10))),
+                in: RoundedRectangle(cornerRadius: 6)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(
+                        lesson.isDisabled ? Color.secondary.opacity(0.18)
+                        : (isSelected ? levelColor(index: levelIndex).opacity(0.4) : Color.clear),
+                        lineWidth: 1
+                    )
+            )
+            .scaleEffect(hovered && !lesson.isDisabled ? 1.03 : 1.0)
+            .contentShape(Rectangle())
+            .onTapGesture { if !lesson.isDisabled { onTap() } }
+            .overlay(alignment: .topTrailing) {
+                if hovered || lesson.isDisabled {
+                    Button {
+                        store.toggleLessonDisabled(lessonId: lesson.id, levelId: levelId)
+                    } label: {
+                        Image(systemName: lesson.isDisabled ? "arrow.uturn.left.circle.fill" : "nosign")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(lesson.isDisabled
+                                ? Color.accentColor.opacity(toggleHovered ? 1.0 : 0.75)
+                                : Color.red.opacity(toggleHovered ? 1.0 : 0.65))
+                            .scaleEffect(toggleHovered ? 1.2 : 1.0)
+                            .animation(.spring(response: 0.15), value: toggleHovered)
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 5, y: -5)
+                    .onHover { toggleHovered = $0 }
+                    .transition(.opacity.combined(with: .scale(scale: 0.7, anchor: .topTrailing)))
+                }
+            }
+            .onHover { hovered = $0 }
+            .animation(.easeInOut(duration: 0.12), value: hovered)
+            .animation(.easeInOut(duration: 0.12), value: lesson.isDisabled)
     }
 }
 
@@ -490,7 +528,7 @@ private struct PendingEntryRow: View {
                 .font(.caption).fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(levelColor(entry.levelId), in: RoundedRectangle(cornerRadius: 4))
+                .background(levelColor(index: store.levels.firstIndex(where: { $0.id == entry.levelId }) ?? 0), in: RoundedRectangle(cornerRadius: 4))
 
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(entry.lessonNumbers, id: \.self) { n in
@@ -527,7 +565,7 @@ private struct EditItemRow: View {
                 .font(.caption).fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(levelColor(item.levelId), in: RoundedRectangle(cornerRadius: 4))
+                .background(levelColor(index: store.levels.firstIndex(where: { $0.id == item.levelId }) ?? 0), in: RoundedRectangle(cornerRadius: 4))
 
             let lessons: [Lesson] = item.lessonIds.compactMap { lid in
                 let tail = lid.components(separatedBy: "-").last ?? lid

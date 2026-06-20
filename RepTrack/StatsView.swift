@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 struct StatsView: View {
     @Environment(DataStore.self) private var store
-    @State private var selectedTab = "全部"
+    @Binding var selectedTab: String
     @State private var draggingId: String?
     @State private var isRefreshing = false
     @State private var refreshHovered = false
@@ -271,19 +271,20 @@ struct AllLevelsContent: View {
     @State private var coveragePeriod: StatPeriod = .week
     @State private var chartCardHeight: CGFloat = 0
 
-    private var totalLessons: Int { store.levels.reduce(0) { $0 + $1.lessons.count } }
+    private var totalLessons: Int { store.levels.reduce(0) { $0 + $1.lessons.filter { !$0.isDisabled }.count } }
     private var coverage: Double {
         guard totalLessons > 0 else { return 0 }
         return Double(store.reviewedLessonCount(period: coveragePeriod)) / Double(totalLessons)
     }
     private var levelCoverages: [LevelCoverage] {
         store.levels.map { lv in
-            let counts = lv.lessons.map { store.reviewCount(for: $0.id) }
+            let active = lv.lessons.filter { !$0.isDisabled }
+            let counts = active.map { store.reviewCount(for: $0.id) }
             let totalRev = counts.reduce(0, +)
             let rev = counts.filter { $0 > 0 }.count
             let minRev = counts.min() ?? 0
             let capped = counts.reduce(0) { $0 + min($1, lv.tierStep) }
-            return LevelCoverage(id: lv.id, total: lv.lessons.count,
+            return LevelCoverage(id: lv.id, total: active.count,
                                  reviewed: rev, totalReviews: totalRev,
                                  minReviews: minRev, cappedTotalReviews: capped,
                                  tierStep: lv.tierStep)
@@ -363,7 +364,7 @@ struct CoverageChartCard: View {
                 }
                 Spacer()
                 if cardTab == 0, let lv = hoveredItem {
-                    CoverageTooltip(lv: lv)
+                    CoverageTooltip(lv: lv, levelIndex: coverages.firstIndex(where: { $0.id == lv.id }) ?? 0)
                         .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
                 }
                 // Tab 切换：雷达图 / 热力图
@@ -474,7 +475,7 @@ struct CoverageChartCard: View {
         ForEach(Array(coverages.prefix(n).enumerated()), id: \.offset) { i, cov in
             let a     = radarAngle(i: i, n: n)
             let pct   = CGFloat(cov.pct) / 100.0 * progress
-            let color = levelColor(cov.id)
+            let color = levelColor(index: coverages.firstIndex(where: { $0.id == cov.id }) ?? 0)
             Circle()
                 .fill(color)
                 .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.5))
@@ -627,7 +628,7 @@ private struct TierRow: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(levelColor(cov.id)).frame(width: 7, height: 7)
+            Circle().fill(levelColor(index: store.levels.firstIndex(where: { $0.id == cov.id }) ?? 0)).frame(width: 7, height: 7)
             Text(cov.id).font(.caption).fontWeight(.medium)
             Spacer()
             Text("第\(cov.tierNumber)阶  \(cov.minReviews)/\(cov.tierCeil)次")
@@ -672,9 +673,10 @@ private struct ScoreDimRow: View {
 
 private struct CoverageTooltip: View {
     let lv: LevelCoverage
+    let levelIndex: Int
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(levelColor(lv.id)).frame(width: 7, height: 7)
+            Circle().fill(levelColor(index: levelIndex)).frame(width: 7, height: 7)
             Text(lv.id).font(.caption).fontWeight(.medium)
             Text("·").foregroundStyle(.secondary)
             Text("\(String(format: "%.0f", lv.pct))分")
@@ -702,8 +704,9 @@ struct RecommendedLessonsCard: View {
 
     private var recommendations: [LevelRec] {
         store.levels.compactMap { level in
-            guard !level.lessons.isEmpty else { return nil }
-            let stats = level.lessons.map { lesson in
+            let active = level.lessons.filter { !$0.isDisabled }
+            guard !active.isEmpty else { return nil }
+            let stats = active.map { lesson in
                 LessonStat(
                     lesson: lesson,
                     reviewCount: store.reviewCount(for: lesson.id),
@@ -717,8 +720,9 @@ struct RecommendedLessonsCard: View {
 
     private var recentByLevel: [LevelRec] {
         store.levels.compactMap { level in
-            guard !level.lessons.isEmpty else { return nil }
-            let stats = level.lessons.map { lesson in
+            let active = level.lessons.filter { !$0.isDisabled }
+            guard !active.isEmpty else { return nil }
+            let stats = active.map { lesson in
                 LessonStat(lesson: lesson,
                            reviewCount: store.reviewCount(for: lesson.id),
                            lastReviewed: store.lastReviewed(lessonId: lesson.id))
@@ -759,7 +763,7 @@ struct RecommendedLessonsCard: View {
                                         .font(.caption).fontWeight(.semibold)
                                         .foregroundStyle(.white)
                                         .padding(.horizontal, 6).padding(.vertical, 2)
-                                        .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
+                                        .background(levelColor(index: store.levels.firstIndex(where: { $0.id == rec.level.id }) ?? 0), in: RoundedRectangle(cornerRadius: 4))
                                     Text(String(format: "均 %.1f 次", rec.avg))
                                         .font(.caption2).foregroundStyle(.secondary)
                                 }
@@ -802,7 +806,7 @@ struct RecommendedLessonsCard: View {
                                             .font(.caption).fontWeight(.semibold)
                                             .foregroundStyle(.white)
                                             .padding(.horizontal, 6).padding(.vertical, 2)
-                                            .background(levelColor(rec.level.id), in: RoundedRectangle(cornerRadius: 4))
+                                            .background(levelColor(index: store.levels.firstIndex(where: { $0.id == rec.level.id }) ?? 0), in: RoundedRectangle(cornerRadius: 4))
                                     }
                                     ForEach(rec.lessons) { stat in
                                         HStack(spacing: 0) {
@@ -863,11 +867,11 @@ struct LevelContent: View {
         }
         if stats.totalLessons > 0 {
             HStack(alignment: .top, spacing: 14) {
-                LessonCountChartCard(stats: stats, paneHeight: paneHeight)
+                LessonCountChartCard(stats: stats, levelIndex: store.levels.firstIndex(where: { $0.id == stats.level.id }) ?? 0, paneHeight: paneHeight)
                     .background(GeometryReader { geo in
                         Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
                     })
-                LevelRecommendedCard(stats: stats)
+                LevelRecommendedCard(stats: stats, levelIndex: store.levels.firstIndex(where: { $0.id == stats.level.id }) ?? 0)
                     .frame(minWidth: 190, maxWidth: 240)
                     .frame(height: chartCardHeight > 0 ? chartCardHeight : 270)
             }
@@ -881,6 +885,7 @@ struct LevelContent: View {
 
 struct LevelRecommendedCard: View {
     let stats: LevelStats
+    let levelIndex: Int
 
     private var avg: Double {
         guard !stats.lessonStats.isEmpty else { return 0 }
@@ -919,7 +924,7 @@ struct LevelRecommendedCard: View {
                             .font(.caption).fontWeight(.semibold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(levelColor(stats.level.id), in: RoundedRectangle(cornerRadius: 4))
+                            .background(levelColor(index: levelIndex), in: RoundedRectangle(cornerRadius: 4))
                         Text(String(format: "均 %.1f 次", avg))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
@@ -990,6 +995,7 @@ private struct RecommendRow: View {
 
 struct LessonCountChartCard: View {
     let stats: LevelStats
+    let levelIndex: Int
     var paneHeight: CGFloat = 400
     @State private var hoveredNumber: String?
     @State private var animate = false
@@ -1023,7 +1029,7 @@ struct LessonCountChartCard: View {
                 Text("各课复习次数").font(.headline)
                 Spacer()
                 if let st = hoveredStat {
-                    LessonTooltip(stat: st, levelId: stats.level.id)
+                    LessonTooltip(stat: st, levelId: stats.level.id, levelIndex: levelIndex)
                         .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
                 }
             }
@@ -1047,7 +1053,7 @@ struct LessonCountChartCard: View {
             let dimmed = hoveredNumber != nil && hoveredNumber != key
             let barStyle: AnyShapeStyle = stat.reviewCount == 0
                 ? AnyShapeStyle(Color.gray.opacity(dimmed ? 0.1 : 0.22))
-                : AnyShapeStyle(levelColor(stats.level.id).opacity(dimmed ? 0.25 : 1.0).gradient)
+                : AnyShapeStyle(levelColor(index: levelIndex).opacity(dimmed ? 0.25 : 1.0).gradient)
             let yVal = animate ? stat.reviewCount : 0
             BarMark(x: .value("课程", key), y: .value("次数", yVal))
                 .foregroundStyle(barStyle)
@@ -1090,10 +1096,11 @@ struct LessonCountChartCard: View {
 private struct LessonTooltip: View {
     let stat: LessonStat
     let levelId: String
+    let levelIndex: Int
     var body: some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 2)
-                .fill(stat.reviewCount > 0 ? levelColor(levelId) : Color.gray.opacity(0.5))
+                .fill(stat.reviewCount > 0 ? levelColor(index: levelIndex) : Color.gray.opacity(0.5))
                 .frame(width: 8, height: 8)
             Text(stat.lesson.displayName)
                 .font(.caption).fontWeight(.medium)
