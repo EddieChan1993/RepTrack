@@ -186,6 +186,11 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - 🆕 新增：重置按钮，清空所有 SMTP 配置及 Keychain 授权码
 - ♻️ 优化：保存按钮改为 ✕ 关闭图标，关闭时自动保存
 
+### 2026-06-07
+- 🐛 修复：统计卡片水印数字位置不一致 → 三种卡片（StatCard/PeriodStatCard/PeriodCoverageCard）统一为 ZStack + offset(x:8,y:8)
+- 🐛 修复：SMTPSettingsView 加 .frame(height:360) 修复新版 macOS 弹窗不展开问题
+- 🐛 修复：SMTP 界面重置/关闭/预设按钮加 .focusable(false) 消除焦点蓝框
+
 ### 2026-06-06
 - 🐛 修复：「保存修改/保存记录」按钮将 padding/background/contentShape 移入 label 内部，整个圆角区域均可点击
 - ♻️ 优化：「添加复习」按钮从工具栏移入「复习日志」标题栏，与「N 条记录」同行，⌘N 快捷键保留
