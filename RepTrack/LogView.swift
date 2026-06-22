@@ -3,11 +3,15 @@ import SwiftUI
 struct LogView: View {
     @Environment(DataStore.self) private var store
     let defaultLevelId: String
+    var scrollToDate: Binding<Date?> = .constant(nil)
     @State private var editingSession: ReviewSession?
     @State private var pendingClearGroup: (key: String, ids: [UUID])?
     @State private var listRefreshID = 0
     @State private var showAdd = false
     @State private var addHovered = false
+    @State private var noLogDateLabel = ""
+    @State private var showNoLogAlert = false
+    @State private var highlightedSessionId: UUID? = nil
 
     private var grouped: [(key: String, sessions: [ReviewSession])] {
         let fmt = DateFormatter()
@@ -69,36 +73,65 @@ struct LogView: View {
                     description: Text("点击「添加」开始记录第一次复习")
                 )
             } else {
-                List {
-                    ForEach(grouped, id: \.key) { group in
-                        Section {
-                            ForEach(group.sessions) { session in
-                                SessionRow(session: session) {
-                                    editingSession = session
-                                } onDelete: {
-                                    store.deleteSession(session.id)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(grouped, id: \.key) { group in
+                            Section {
+                                ForEach(group.sessions) { session in
+                                    SessionRow(session: session,
+                                               isHighlighted: highlightedSessionId == session.id) {
+                                        editingSession = session
+                                    } onDelete: {
+                                        store.deleteSession(session.id)
+                                    }
+                                    .id(session.id)
                                 }
-                            }
-                        } header: {
-                            MonthSectionHeader(title: group.key, count: group.sessions.count) {
-                                pendingClearGroup = (group.key, group.sessions.map(\.id))
+                            } header: {
+                                MonthSectionHeader(title: group.key, count: group.sessions.count) {
+                                    pendingClearGroup = (group.key, group.sessions.map(\.id))
+                                }
                             }
                         }
                     }
-                }
-                .id(listRefreshID)
-                .listStyle(.inset)
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                    listRefreshID += 1
-                }
-                .onChange(of: store.levels.count) { _, _ in
-                    listRefreshID += 1
+                    .id(listRefreshID)
+                    .listStyle(.inset)
+                    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                        listRefreshID += 1
+                    }
+                    .onChange(of: store.levels.count) { _, _ in
+                        listRefreshID += 1
+                    }
+                    .onChange(of: scrollToDate.wrappedValue) { _, date in
+                        guard let date else { return }
+                        scrollToDate.wrappedValue = nil
+                        let cal = Calendar.current
+                        if let session = store.sessions.first(where: { cal.isDate($0.date, inSameDayAs: date) }) {
+                            withAnimation(.easeIn(duration: 0.1)) { highlightedSessionId = session.id }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                withAnimation { proxy.scrollTo(session.id, anchor: .center) }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                                withAnimation(.easeOut(duration: 1.2)) { highlightedSessionId = nil }
+                            }
+                        } else {
+                            let fmt = DateFormatter()
+                            fmt.locale = Locale(identifier: "zh_CN")
+                            fmt.dateFormat = "MM月dd日"
+                            noLogDateLabel = fmt.string(from: date)
+                            showNoLogAlert = true
+                        }
+                    }
                 }
             }
         }
         .sheet(isPresented: $showAdd) { AddSessionView(defaultLevelId: defaultLevelId) }
         .sheet(item: $editingSession) { session in
             AddSessionView(existing: session, defaultLevelId: defaultLevelId)
+        }
+        .alert("\(noLogDateLabel) 无复习记录", isPresented: $showNoLogAlert) {
+            Button("好") { }
+        } message: {
+            Text("这一天没有复习记录，可点击「+」手动添加。")
         }
         .keyboardShortcut("n", modifiers: .command)
         .confirmationDialog(
@@ -161,6 +194,7 @@ private struct MonthSectionHeader: View {
 struct SessionRow: View {
     @Environment(DataStore.self) private var store
     let session: ReviewSession
+    var isHighlighted: Bool = false
     let onEdit: () -> Void
     let onDelete: () -> Void
 
@@ -239,6 +273,11 @@ struct SessionRow: View {
 
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.accentColor.opacity(isHighlighted ? 0.18 : 0))
+        )
         .contentShape(Rectangle())
         .contextMenu {
             Button("编辑") { onEdit() }

@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct StatsView: View {
     @Environment(DataStore.self) private var store
     @Binding var selectedTab: String
+    var onDayTapped: (Date) -> Void = { _ in }
     @State private var draggingId: String?
     @State private var isRefreshing = false
     @State private var refreshHovered = false
@@ -161,7 +162,7 @@ struct StatsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if selectedTab == "全部" {
-                            AllLevelsContent(paneHeight: proxy.size.height)
+                            AllLevelsContent(paneHeight: proxy.size.height, onDayTapped: onDayTapped)
                         } else if let stats = store.levelStats(for: selectedTab) {
                             LevelContent(stats: stats, paneHeight: proxy.size.height)
                         } else {
@@ -267,6 +268,7 @@ struct LevelCoverage: Identifiable {
 struct AllLevelsContent: View {
     @Environment(DataStore.self) private var store
     var paneHeight: CGFloat = 400
+    var onDayTapped: (Date) -> Void = { _ in }
     @State private var reviewPeriod: StatPeriod = .week
     @State private var coveragePeriod: StatPeriod = .week
     @State private var chartCardHeight: CGFloat = 0
@@ -313,7 +315,7 @@ struct AllLevelsContent: View {
         } else {
             let levelKey = store.levels.map(\.id).joined()
             HStack(alignment: .top, spacing: 14) {
-                CoverageChartCard(coverages: levelCoverages, paneHeight: paneHeight)
+                CoverageChartCard(coverages: levelCoverages, paneHeight: paneHeight, onDayTapped: onDayTapped)
                     .id(levelKey)
                     .background(GeometryReader { geo in
                         Color.clear.preference(key: CardHeightKey.self, value: geo.size.height)
@@ -333,6 +335,7 @@ struct AllLevelsContent: View {
 struct CoverageChartCard: View {
     let coverages: [LevelCoverage]
     var paneHeight: CGFloat = 400
+    var onDayTapped: (Date) -> Void = { _ in }
     @State private var hoveredId: String?
     @State private var progress: CGFloat = 0
     @State private var showingInfo = false
@@ -396,7 +399,7 @@ struct CoverageChartCard: View {
                 GeometryReader { geo in radarContent(in: geo.size) }
                     .frame(height: chartHeight)
             } else {
-                ActivityHeatmap()
+                ActivityHeatmap(onDayTapped: onDayTapped)
                     .frame(maxWidth: .infinity)
                     .frame(height: chartHeight)
             }
@@ -1353,6 +1356,7 @@ private struct ReviewStatsCard: View {
 
 private struct ActivityHeatmap: View {
     @Environment(DataStore.self) private var store
+    var onDayTapped: (Date) -> Void = { _ in }
 
     private static let weeks    = 26
     private static let rows     = 7
@@ -1483,6 +1487,10 @@ private struct ActivityHeatmap: View {
                                         )
                                         .onHover { inside in
                                             hoveredDay = (inside && day != .distantFuture) ? day : nil
+                                        }
+                                        .onTapGesture {
+                                            guard day != .distantFuture else { return }
+                                            onDayTapped(day)
                                         }
                                 }
                             }

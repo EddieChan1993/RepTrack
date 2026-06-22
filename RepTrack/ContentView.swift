@@ -9,13 +9,15 @@ struct ContentView: View {
     @State private var emailInput = ""
 
     @State private var selectedLevelTab = "全部"
+    @State private var scrollToLogDate: Date? = nil
 
     var body: some View {
         VSplitView {
-            StatsView(selectedTab: $selectedLevelTab)
+            StatsView(selectedTab: $selectedLevelTab, onDayTapped: { scrollToLogDate = $0 })
                 .frame(minHeight: 440, maxHeight: 600)
                 .background(SplitViewAutosaver())
-            LogView(defaultLevelId: selectedLevelTab == "全部" ? "" : selectedLevelTab)
+            LogView(defaultLevelId: selectedLevelTab == "全部" ? "" : selectedLevelTab,
+                    scrollToDate: $scrollToLogDate)
                 .frame(minHeight: 200)
         }
         .toolbar {

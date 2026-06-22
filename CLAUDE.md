@@ -115,6 +115,12 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-22
+- 🆕 新增：点击热力图格子，复习日志自动滚动定位到对应日期的记录（居中显示）
+- 🆕 新增：定位成功时，对应行即时出现 accentColor 高亮背景，1.8s 后缓慢淡出
+- 🆕 新增：对应日期无记录时弹窗提示「XX月XX日 无复习记录」
+- ♻️ 优化：回调链路 ActivityHeatmap → CoverageChartCard → AllLevelsContent → StatsView → ContentView → LogView，各层均有默认值不影响已有调用
+
 ### 2026-06-20
 - 🐛 修复：等级标签颜色哈希碰撞问题，改为按等级在列表中的位置索引分配颜色，确保不同等级颜色不同（`levelColor(index:)`）
 - 🆕 新增：课时置灰功能（`Lesson.isDisabled`）— hover 芯片右上角浮现红色禁止图标点击置灰，置灰后显示蓝色恢复图标可一键恢复；置灰课时从统计、覆盖率、推荐全部剔除
