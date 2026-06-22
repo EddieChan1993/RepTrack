@@ -1364,8 +1364,8 @@ private struct ActivityHeatmap: View {
     private static let labelH: CGFloat  = 18  // 月份行高
     private static let legendH: CGFloat = 20  // 图例行高
     private static let weekLabelW: CGFloat = 26 // 星期列宽
-    // 只在第 1（Mon）、3（Wed）、5（Fri）行显示星期标签（0-indexed）
-    private static let weekLabels: [Int: String] = [1: "Mon", 3: "Wed", 5: "Fri"]
+    // 只在第 0（Mon）、2（Wed）、4（Fri）行显示星期标签（0-indexed，grid 从周一起）
+    private static let weekLabels: [Int: String] = [0: "Mon", 2: "Wed", 4: "Fri"]
 
     @State private var hoveredDay: Date? = nil
     @State private var hoveredPos: CGPoint = .zero
@@ -1417,13 +1417,20 @@ private struct ActivityHeatmap: View {
     private func monthLabels(step: CGFloat) -> [(colIndex: Int, label: String)] {
         var result: [(Int, String)] = []
         let cal = Calendar.current
-        let fmt = DateFormatter(); fmt.dateFormat = "MMM"
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMM"
+        fmt.locale = Locale(identifier: "en_US")
         var lastMonth = -1
+        var lastColIndex = -4  // 至少间隔3列才显示下一个标签
         for (i, col) in columns.enumerated() {
             let day = col.first { $0 != .distantFuture } ?? .distantFuture
             guard day != .distantFuture else { continue }
             let m = cal.component(.month, from: day)
-            if m != lastMonth { result.append((i, fmt.string(from: day))); lastMonth = m }
+            if m != lastMonth && i - lastColIndex >= 3 {
+                result.append((i, fmt.string(from: day)))
+                lastMonth = m
+                lastColIndex = i
+            }
         }
         return result
     }
@@ -1476,14 +1483,16 @@ private struct ActivityHeatmap: View {
                             VStack(spacing: Self.gap) {
                                 ForEach(0..<7, id: \.self) { ri in
                                     let day = columns[ci][ri]
+                                    let isToday = day != .distantFuture && Calendar.current.isDateInToday(day)
                                     RoundedRectangle(cornerRadius: max(2, cell * 0.18))
                                         .fill(cellColor(for: day, counts: counts))
                                         .frame(width: cell, height: cell)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: max(2, cell * 0.18))
-                                                .stroke(hoveredDay == day && day != .distantFuture
-                                                        ? Color.primary.opacity(0.5) : Color.clear,
-                                                        lineWidth: 1)
+                                                .stroke(isToday ? Color.orange.opacity(0.9)
+                                                        : (hoveredDay == day && day != .distantFuture
+                                                           ? Color.primary.opacity(0.5) : Color.clear),
+                                                        lineWidth: isToday ? 2 : 1)
                                         )
                                         .onHover { inside in
                                             hoveredDay = (inside && day != .distantFuture) ? day : nil
