@@ -198,6 +198,9 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 - ♻️ 优化：保存按钮改为 ✕ 关闭图标，关闭时自动保存
 
 ### 2026-06-07
+- ♻️ 优化：统计区主 ScrollView 改为 showsIndicators: false，隐藏右侧多余滚动条
+
+
 - 🐛 修复：统计卡片水印数字位置不一致 → 三种卡片（StatCard/PeriodStatCard/PeriodCoverageCard）统一为 ZStack + offset(x:8,y:8)
 - 🐛 修复：SMTPSettingsView 加 .frame(height:360) 修复新版 macOS 弹窗不展开问题
 - 🐛 修复：SMTP 界面重置/关闭/预设按钮加 .focusable(false) 消除焦点蓝框

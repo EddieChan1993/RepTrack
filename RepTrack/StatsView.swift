@@ -159,7 +159,7 @@ struct StatsView: View {
             Divider()
 
             GeometryReader { proxy in
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 16) {
                         if selectedTab == "全部" {
                             AllLevelsContent(paneHeight: proxy.size.height, onDayTapped: onDayTapped)
