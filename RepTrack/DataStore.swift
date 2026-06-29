@@ -506,6 +506,7 @@ final class DataStore {
               let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return false }
         levels = saved.levels.map { lv in
             var copy = lv
+            copy.lessons = copy.lessons.filter { $0.number.contains(where: { $0.isNumber }) }
             copy.lessons = deduplicatedByNumber(copy.lessons)
             copy.lessons.sort { lessonNumberLess($0.number, $1.number) }
             return copy
@@ -759,6 +760,7 @@ final class DataStore {
         guard let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
         levels = saved.levels.map { lv in
             var copy = lv
+            copy.lessons = copy.lessons.filter { $0.number.contains(where: { $0.isNumber }) }
             copy.lessons = deduplicatedByNumber(copy.lessons)
             copy.lessons.sort { lessonNumberLess($0.number, $1.number) }
             return copy
@@ -834,7 +836,9 @@ final class DataStore {
         for fileURL in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let stem = fileURL.deletingPathExtension().lastPathComponent
             let parts = stem.split(separator: ".", maxSplits: 1).map(String.init)
-            guard let number = parts.first?.trimmingCharacters(in: .whitespaces), !number.isEmpty else { continue }
+            guard let number = parts.first?.trimmingCharacters(in: .whitespaces),
+                  !number.isEmpty,
+                  number.contains(where: { $0.isNumber }) else { continue }
             let title = parts.count > 1 ? parts[1] : ""
             let lessonId = "\(levelId)-\(number)"
             newLessons.append(Lesson(id: lessonId, number: number, title: title, levelId: levelId))

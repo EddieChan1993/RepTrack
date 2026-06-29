@@ -115,6 +115,10 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-22（再补充）
+- 🐛 修复：数据加载时过滤 number 不含数字的 lesson（如 "Untitled"），无需手动刷新自动清理
+- 🐛 修复：导入时同步过滤无效 number，防止 `Untitled.md` 等非课程文件被导入
+
 ### 2026-06-22（补充）
 - 🐛 修复：热力图星期标签错位（Mon/Wed/Fri 下偏一行）→ 索引从 `[1,3,5]` 改为 `[0,2,4]`，与周一起始的格子对齐
 - 🐛 修复：月份标签重叠（Dec+Jan 挤在一起显示乱码）→ 固定英文 locale + 最小3列间距
