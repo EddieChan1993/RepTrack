@@ -665,7 +665,8 @@ final class DataStore {
         }
     }
 
-    private var disabledLessonIds: Set<String> {
+    // 缓存置灰课程 ID，避免每次统计函数调用都重新遍历 levels
+    var disabledLessonIds: Set<String> {
         Set(levels.flatMap { $0.lessons.filter(\.isDisabled).map(\.id) })
     }
 
@@ -727,6 +728,37 @@ final class DataStore {
         return (counts, lastDates)
     }
 
+    // 预计算缓存：数据变化时重建，view body 直接读，O(1)
+    private(set) var cachedLevelCoverages: [LevelCoverage] = []
+    private(set) var cachedLessonStatsByLevel: [String: [LessonStat]] = [:]
+
+    func rebuildCache() {
+        let index = buildReviewIndex()
+        // 覆盖率
+        cachedLevelCoverages = levels.map { lv in
+            let active = lv.lessons.filter { !$0.isDisabled }
+            let counts = active.map { index.counts[$0.id] ?? 0 }
+            return LevelCoverage(
+                id: lv.id, total: active.count,
+                reviewed: counts.filter { $0 > 0 }.count,
+                totalReviews: counts.reduce(0, +),
+                minReviews: counts.min() ?? 0,
+                cappedTotalReviews: counts.reduce(0) { $0 + min($1, lv.tierStep) },
+                tierStep: lv.tierStep
+            )
+        }
+        // 课程统计
+        var byLevel: [String: [LessonStat]] = [:]
+        for level in levels {
+            byLevel[level.id] = level.lessons.filter { !$0.isDisabled }.map {
+                LessonStat(lesson: $0,
+                           reviewCount: index.counts[$0.id] ?? 0,
+                           lastReviewed: index.lastDates[$0.id])
+            }
+        }
+        cachedLessonStatsByLevel = byLevel
+    }
+
     func levelStats(for levelId: String) -> LevelStats? {
         guard let level = levels.first(where: { $0.id == levelId }) else { return nil }
         let index = buildReviewIndex()
@@ -766,9 +798,11 @@ final class DataStore {
             return copy
         }
         sessions = saved.sessions.sorted { $0.date > $1.date }
+        rebuildCache()
     }
 
     func save() {
+        rebuildCache()
         // 防抖：300ms 内多次调用只触发最后一次，后台线程写磁盘，不阻塞 UI
         saveWorkItem?.cancel()
         let payload = Saved(levels: levels, sessions: sessions)

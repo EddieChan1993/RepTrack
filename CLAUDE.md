@@ -115,6 +115,11 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-06-22（性能优化）
+- ⚡ 性能：DataStore 新增 `cachedLevelCoverages` / `cachedLessonStatsByLevel` 预计算缓存
+- ⚡ 性能：`rebuildCache()` 只在 `save()` / `load()` 时执行一次 O(sessions) 扫描，view body 读缓存 O(1)
+- ⚡ 性能：`RecommendedLessonsCard` / `AllLevelsContent` 改为读缓存，消除主线程渲染时的重复全量扫描
+
 ### 2026-06-22（再补充）
 - 🐛 修复：数据加载时过滤 number 不含数字的 lesson（如 "Untitled"），无需手动刷新自动清理
 - 🐛 修复：导入时同步过滤无效 number，防止 `Untitled.md` 等非课程文件被导入

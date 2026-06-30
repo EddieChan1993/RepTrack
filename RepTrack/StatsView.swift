@@ -278,20 +278,7 @@ struct AllLevelsContent: View {
         guard totalLessons > 0 else { return 0 }
         return Double(store.reviewedLessonCount(period: coveragePeriod)) / Double(totalLessons)
     }
-    private var levelCoverages: [LevelCoverage] {
-        store.levels.map { lv in
-            let active = lv.lessons.filter { !$0.isDisabled }
-            let counts = active.map { store.reviewCount(for: $0.id) }
-            let totalRev = counts.reduce(0, +)
-            let rev = counts.filter { $0 > 0 }.count
-            let minRev = counts.min() ?? 0
-            let capped = counts.reduce(0) { $0 + min($1, lv.tierStep) }
-            return LevelCoverage(id: lv.id, total: active.count,
-                                 reviewed: rev, totalReviews: totalRev,
-                                 minReviews: minRev, cappedTotalReviews: capped,
-                                 tierStep: lv.tierStep)
-        }
-    }
+    private var levelCoverages: [LevelCoverage] { store.cachedLevelCoverages }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -707,15 +694,7 @@ struct RecommendedLessonsCard: View {
 
     private var recommendations: [LevelRec] {
         store.levels.compactMap { level in
-            let active = level.lessons.filter { !$0.isDisabled }
-            guard !active.isEmpty else { return nil }
-            let stats = active.map { lesson in
-                LessonStat(
-                    lesson: lesson,
-                    reviewCount: store.reviewCount(for: lesson.id),
-                    lastReviewed: store.lastReviewed(lessonId: lesson.id)
-                )
-            }
+            guard let stats = store.cachedLessonStatsByLevel[level.id], !stats.isEmpty else { return nil }
             let avg = Double(stats.reduce(0) { $0 + $1.reviewCount }) / Double(stats.count)
             return LevelRec(level: level, avg: avg, lessons: topRecommendations(stats))
         }
@@ -723,13 +702,7 @@ struct RecommendedLessonsCard: View {
 
     private var recentByLevel: [LevelRec] {
         store.levels.compactMap { level in
-            let active = level.lessons.filter { !$0.isDisabled }
-            guard !active.isEmpty else { return nil }
-            let stats = active.map { lesson in
-                LessonStat(lesson: lesson,
-                           reviewCount: store.reviewCount(for: lesson.id),
-                           lastReviewed: store.lastReviewed(lessonId: lesson.id))
-            }
+            guard let stats = store.cachedLessonStatsByLevel[level.id], !stats.isEmpty else { return nil }
             let recent = Array(stats
                 .filter { $0.lastReviewed != nil }
                 .sorted { ($0.lastReviewed ?? .distantPast) > ($1.lastReviewed ?? .distantPast) }
