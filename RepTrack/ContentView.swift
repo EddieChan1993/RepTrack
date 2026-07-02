@@ -85,6 +85,12 @@ private struct EmailPopover: View {
 
     @State private var sendState: SendState = .idle
     @State private var showSMTPSettings = false
+    @State private var autoEnabled = false
+    @State private var autoTime: Date = {
+        var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        c.hour = 8; c.minute = 0
+        return Calendar.current.date(from: c) ?? Date()
+    }()
     @FocusState private var focused: Bool
 
     enum SendState: Equatable {
@@ -121,6 +127,42 @@ private struct EmailPopover: View {
                         .onSubmit { send() }
                 }
 
+                Divider()
+
+                HStack {
+                    Text("每天自动发送")
+                        .font(.callout)
+                    Spacer()
+                    Toggle("", isOn: $autoEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(emailInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .onChange(of: autoEnabled) { _, v in
+                            if v { store.recipientEmail = emailInput.trimmingCharacters(in: .whitespaces) }
+                            store.autoEmailEnabled = v
+                            store.scheduleEmailTimer()
+                        }
+                }
+
+                if autoEnabled {
+                    HStack {
+                        Text("发送时间")
+                            .font(.callout).foregroundStyle(.secondary)
+                        Spacer()
+                        DatePicker("", selection: $autoTime, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .onChange(of: autoTime) { _, t in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: t)
+                                store.autoEmailHour   = c.hour   ?? 8
+                                store.autoEmailMinute = c.minute ?? 0
+                                store.scheduleEmailTimer()
+                            }
+                    }
+                }
+
+                Divider()
+
                 // 发送状态
                 switch sendState {
                 case .idle:    EmptyView()
@@ -153,7 +195,13 @@ private struct EmailPopover: View {
         }
         .padding(18)
         .frame(width: 320)
-        .onAppear { focused = true }
+        .onAppear {
+            focused = true
+            autoEnabled = store.autoEmailEnabled
+            var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            c.hour = store.autoEmailHour; c.minute = store.autoEmailMinute
+            autoTime = Calendar.current.date(from: c) ?? autoTime
+        }
         .sheet(isPresented: $showSMTPSettings) {
             SMTPSettingsView().environment(store)
         }

@@ -115,6 +115,11 @@ Open `RepTrack.xcodeproj` in Xcode 15+ and run on macOS 14+. No external depende
 
 ## 变更记录
 
+### 2026-07-02
+- 🐛 修复：AddSessionView「取消」按钮点击区域仅字体范围可点 → 改为与「保存」按钮一致的写法（padding/background/contentShape 移入 label 内部），整个圆角背景区域均可点击
+- 🆕 新增：邮件发送弹窗（EmailPopover）新增「每天自动发送」开关 + 时间选择器，开启后每天定时自动发送每日复习提醒邮件，无需手动点击
+- 🆕 新增：`DataStore.autoEmailEnabled` / `autoEmailHour` / `autoEmailMinute` 持久化配置 + `scheduleEmailTimer()` 定时调度（复用自动备份的 Timer 调度模式），App 启动时自动恢复调度
+
 ### 2026-06-22（性能优化）
 - ⚡ 性能：DataStore 新增 `cachedLevelCoverages` / `cachedLessonStatsByLevel` 预计算缓存
 - ⚡ 性能：`rebuildCache()` 只在 `save()` / `load()` 时执行一次 O(sessions) 扫描，view body 读缓存 O(1)

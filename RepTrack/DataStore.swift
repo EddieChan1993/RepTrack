@@ -22,6 +22,9 @@ final class DataStore {
     private static let smtpPortKey       = "RepTrack.smtpPort"
     private static let smtpUserKey       = "RepTrack.smtpUser"
     private static let smtpSSLKey        = "RepTrack.smtpSSL"
+    private static let emailAutoEnabledKey = "RepTrack.emailAutoEnabled"
+    private static let emailAutoHourKey    = "RepTrack.emailAutoHour"
+    private static let emailAutoMinuteKey  = "RepTrack.emailAutoMinute"
 
     // MARK: - Backup keys
     private static let backupFolderKey  = "RepTrack.backupFolderPath"
@@ -164,6 +167,48 @@ final class DataStore {
         let (subject, body) = buildEmailContent()
         EmailService.shared.send(config: smtpConfig, to: recipient,
                                   subject: subject, body: body, completion: completion)
+    }
+
+    // MARK: - Auto email schedule
+
+    var autoEmailEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: DataStore.emailAutoEnabledKey) }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.emailAutoEnabledKey) }
+    }
+
+    var autoEmailHour: Int {
+        get {
+            let v = UserDefaults.standard.object(forKey: DataStore.emailAutoHourKey)
+            return v == nil ? 8 : UserDefaults.standard.integer(forKey: DataStore.emailAutoHourKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.emailAutoHourKey) }
+    }
+
+    var autoEmailMinute: Int {
+        get { UserDefaults.standard.integer(forKey: DataStore.emailAutoMinuteKey) }
+        set { UserDefaults.standard.set(newValue, forKey: DataStore.emailAutoMinuteKey) }
+    }
+
+    private var emailTimer: Timer?
+
+    func scheduleEmailTimer() {
+        emailTimer?.invalidate()
+        guard autoEmailEnabled, !recipientEmail.isEmpty, smtpConfigured else { return }
+        func nextFire() -> Date {
+            var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            comps.hour = autoEmailHour
+            comps.minute = autoEmailMinute
+            comps.second = 0
+            var fire = Calendar.current.date(from: comps) ?? Date()
+            if fire <= Date() { fire = Calendar.current.date(byAdding: .day, value: 1, to: fire) ?? fire }
+            return fire
+        }
+        let interval = nextFire().timeIntervalSinceNow
+        emailTimer = Timer.scheduledTimer(withTimeInterval: max(interval, 1), repeats: false) { [weak self] _ in
+            guard let self, self.autoEmailEnabled, !self.recipientEmail.isEmpty else { return }
+            self.sendDailyEmail(to: self.recipientEmail) { _ in }
+            self.scheduleEmailTimer() // 重新调度明天
+        }
     }
 
     // MARK: - HTML email builder
@@ -527,11 +572,13 @@ final class DataStore {
         if levels.isEmpty { levels = Self.defaultLevels() }
         startSyncTimer()
         scheduleBackupTimer()
+        scheduleEmailTimer()
     }
 
     deinit {
         syncTimer?.invalidate()
         backupTimer?.invalidate()
+        emailTimer?.invalidate()
     }
 
     // Poll every 30 s — lightweight mtime check, no kernel event machinery needed.

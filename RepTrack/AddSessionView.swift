@@ -51,17 +51,21 @@ struct AddSessionView: View {
                 Text(isEditMode ? "编辑复习记录" : "添加复习记录")
                     .font(.title2).fontWeight(.semibold)
                 Spacer()
-                Button("取消") { dismiss() }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(cancelHovered ? .primary : .secondary)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(cancelHovered ? AnyShapeStyle(Color.secondary.opacity(0.12)) : AnyShapeStyle(Color.clear),
-                                in: RoundedRectangle(cornerRadius: 7))
-                    .scaleEffect(cancelHovered ? 1.04 : 1.0)
-                    .animation(.easeInOut(duration: 0.12), value: cancelHovered)
-                    .contentShape(RoundedRectangle(cornerRadius: 7))
-                    .onHover { cancelHovered = $0 }
-                    .focusable(false)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("取消")
+                        .foregroundStyle(cancelHovered ? .primary : .secondary)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(cancelHovered ? AnyShapeStyle(Color.secondary.opacity(0.12)) : AnyShapeStyle(Color.clear),
+                                    in: RoundedRectangle(cornerRadius: 7))
+                        .contentShape(RoundedRectangle(cornerRadius: 7))
+                }
+                .buttonStyle(.plain)
+                .scaleEffect(cancelHovered ? 1.04 : 1.0)
+                .animation(.easeInOut(duration: 0.12), value: cancelHovered)
+                .onHover { cancelHovered = $0 }
+                .focusable(false)
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 12)
 
